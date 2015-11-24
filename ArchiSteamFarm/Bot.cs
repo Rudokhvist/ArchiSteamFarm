@@ -298,6 +298,17 @@ namespace ArchiSteamFarm {
 			if (string.IsNullOrEmpty(botName)) {
 				bot = this;
 			} else {
+				if (botName.Equals("all")) {
+					foreach (var curbot in Bots) {
+						if (curbot.Value.CardsFarmer.CurrentGamesFarming.Count == 0)
+							SendMessageToUser(steamID, "Bot " + curbot.Key + " is not farming.");
+						else
+							SendMessageToUser(steamID, "Bot " + curbot.Key + " is currently farming appIDs: " + string.Join(", ", curbot.Value.CardsFarmer.CurrentGamesFarming) + " and has a total of " + curbot.Value.CardsFarmer.GamesToFarm.Count + " games left to farm");
+					}
+					SendMessageToUser(steamID, "Currently " + Bots.Count + " bots are running");
+					return;
+				}
+
 				if (!Bots.TryGetValue(botName, out bot)) {
 					SendMessageToUser(steamID, "Couldn't find any bot named " + botName + "!");
 					return;
