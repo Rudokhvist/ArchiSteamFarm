@@ -56,6 +56,7 @@ namespace ArchiSteamFarm {
 
 		internal static readonly string Version = AssemblyName.Version.ToString();
 		internal static readonly object ConsoleLock = new object();
+		internal static bool dontexit = false;
 
 		private static async Task CheckForUpdate() {
 			JObject response = await WebBrowser.UrlGetToJObject(LatestGithubReleaseURL).ConfigureAwait(false);
@@ -140,9 +141,13 @@ namespace ArchiSteamFarm {
 
 		internal static async void OnBotShutdown() {
 			if (Bot.GetRunningBotsCount() == 0) {
-				Logging.LogGenericInfo("Main", "No bots are running, exiting");
-				await Utilities.SleepAsync(5000).ConfigureAwait(false); // This might be the only message user gets, consider giving him some time
-				ShutdownResetEvent.Set();
+				if (dontexit) {
+					Logging.LogGenericInfo("Main", "No bots are running");
+				} else {
+					Logging.LogGenericInfo("Main", "No bots are running, exiting");
+					await Utilities.SleepAsync(5000).ConfigureAwait(false); // This might be the only message user gets, consider giving him some time
+					ShutdownResetEvent.Set();
+				}
 			}
 		}
 
@@ -153,6 +158,13 @@ namespace ArchiSteamFarm {
 		private static void Main(string[] args) {
 			Logging.LogGenericInfo("Main", "Archi's Steam Farm, version " + Version);
 
+			if (args.Length != 0) {
+				foreach (string arg in args) {
+					if (arg.Equals("-t", StringComparison.OrdinalIgnoreCase)) {
+						dontexit = true;
+					}
+				}
+			}
 			InitServices();
 
 			Task.Run(async () => await CheckForUpdate().ConfigureAwait(false)).Wait();
