@@ -52,11 +52,13 @@ namespace ArchiSteamFarm {
 		private static readonly Assembly Assembly = Assembly.GetExecutingAssembly();
 		private static readonly string ExecutablePath = Assembly.Location;
 		private static readonly AssemblyName AssemblyName = Assembly.GetName();
+		private static readonly object ConsoleLock = new object();
 		//private static readonly string ExeName = AssemblyName.Name + ".exe";
 
+		internal static readonly uint UniqueID = (uint) Utilities.Random.Next();
 		internal static readonly string Version = AssemblyName.Version.ToString();
-		internal static readonly object ConsoleLock = new object();
 		internal static bool dontexit = false;
+		internal static bool ConsoleIsBusy = false;
 
 		private static async Task CheckForUpdate() {
 			JObject response = await WebBrowser.UrlGetToJObject(LatestGithubReleaseURL).ConfigureAwait(false);
@@ -105,6 +107,7 @@ namespace ArchiSteamFarm {
 		internal static string GetUserInput(string botLogin, EUserInputType userInputType, string extraInformation = null) {
 			string result;
 			lock (ConsoleLock) {
+				ConsoleIsBusy = true;
 				switch (userInputType) {
 					case EUserInputType.Login:
 						Console.Write("<" + botLogin + "> Please enter your login: ");
@@ -135,7 +138,9 @@ namespace ArchiSteamFarm {
 				}
 				result = Console.ReadLine();
 				Console.Clear(); // For security purposes
+				ConsoleIsBusy = false;
 			}
+
 			return result.Trim(); // Get rid of all whitespace characters
 		}
 

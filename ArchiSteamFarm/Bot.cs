@@ -51,6 +51,7 @@ namespace ArchiSteamFarm {
 
 		private bool LoggedInElsewhere = false;
 		private bool IsRunning = false;
+		private bool IsBeingUsedAsPrimaryAccount = false;
 		private string AuthCode, LoginKey, TwoFactorAuth;
 
 		internal ArchiHandler ArchiHandler { get; private set; }
@@ -382,7 +383,7 @@ namespace ArchiSteamFarm {
 			}
 
 			await bot.Stop().ConfigureAwait(false);
-			Bots.TryRemove(botName, out bot);
+			Bots.TryRemove(bot.BotName, out bot);
 
 			Program.OnBotShutdown();
 			return true;
@@ -609,8 +610,7 @@ namespace ArchiSteamFarm {
 				SteamPassword = Program.GetUserInput(BotName, Program.EUserInputType.Password);
 			}
 
-			// TODO: We should use SteamUser.LogOn with proper LoginID once https://github.com/SteamRE/SteamKit/pull/217 gets merged
-			ArchiHandler.HackedLogOn(0xBAADF00D, new SteamUser.LogOnDetails {
+			SteamUser.LogOnDetails logOnDetails = new SteamUser.LogOnDetails {
 				Username = SteamLogin,
 				Password = SteamPassword,
 				AuthCode = AuthCode,
@@ -618,7 +618,14 @@ namespace ArchiSteamFarm {
 				TwoFactorCode = TwoFactorAuth,
 				SentryFileHash = sentryHash,
 				ShouldRememberPassword = true
-			});
+			};
+
+			if (!IsBeingUsedAsPrimaryAccount) {
+				SteamUser.LogOn(logOnDetails);
+			} else {
+				// TODO: We should use SteamUser.LogOn with proper LoginID once https://github.com/SteamRE/SteamKit/pull/217 gets merged
+				ArchiHandler.HackedLogOn(Program.UniqueID, logOnDetails);
+			}
 		}
 
 		private async void OnDisconnected(SteamClient.DisconnectedCallback callback) {
@@ -795,9 +802,12 @@ namespace ArchiSteamFarm {
 			Logging.LogGenericInfo(BotName, "Logged off of Steam: " + callback.Result);
 
 			switch (callback.Result) {
+				case EResult.LogonSessionReplaced:
+					Logging.LogGenericInfo(BotName, "This is primary account, changing logic alt -> main");
+					IsBeingUsedAsPrimaryAccount = true;
+					break;
 				case EResult.AlreadyLoggedInElsewhere:
 				case EResult.LoggedInElsewhere:
-				case EResult.LogonSessionReplaced:
 					LoggedInElsewhere = true;
 					break;
 			}
@@ -821,15 +831,18 @@ namespace ArchiSteamFarm {
 					}
 					break;
 				case EResult.InvalidPassword:
-					Logging.LogGenericWarning(BotName, "Unable to login to Steam: " + result + ", will retry after a longer while");
+					Logging.LogGenericWarning(BotName, "Unable to login to Steam: " + result);
 					await Stop().ConfigureAwait(false);
 
-					// InvalidPassword means that we must assume login key has expired
-					LoginKey = null;
-					File.Delete(LoginKeyFile);
-
-					// InvalidPassword also means that we might get captcha or other network-based throttling
-					await Utilities.SleepAsync(25 * 60 * 1000).ConfigureAwait(false); // Captcha disappears after around 20 minutes, so we make it 25
+					// InvalidPassword means usually that login key has expired, if we used it
+					if (!string.IsNullOrEmpty(LoginKey)) {
+						LoginKey = null;
+						File.Delete(LoginKeyFile);
+						Logging.LogGenericInfo(BotName, "Removed expired login key, reconnecting...");
+					} else { // If we didn't use login key, InvalidPassword usually means we got captcha or other network-based throttling
+						Logging.LogGenericInfo(BotName, "Will retry after 25 minutes...");
+						await Utilities.SleepAsync(25 * 60 * 1000).ConfigureAwait(false); // Captcha disappears after around 20 minutes, so we make it 25
+					}
 
 					// After all of that, try again
 					await Start().ConfigureAwait(false);
