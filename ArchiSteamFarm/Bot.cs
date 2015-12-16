@@ -51,7 +51,6 @@ namespace ArchiSteamFarm {
 
 		private bool LoggedInElsewhere = false;
 		private bool IsRunning = false;
-		private bool IsBeingUsedAsPrimaryAccount = false;
 		private string AuthCode, LoginKey, TwoFactorAuth;
 
 		internal ArchiHandler ArchiHandler { get; private set; }
@@ -610,7 +609,8 @@ namespace ArchiSteamFarm {
 				SteamPassword = Program.GetUserInput(BotName, Program.EUserInputType.Password);
 			}
 
-			SteamUser.LogOnDetails logOnDetails = new SteamUser.LogOnDetails {
+			// TODO: We should use SteamUser.LogOn with proper LoginID once https://github.com/SteamRE/SteamKit/pull/217 gets merged
+			ArchiHandler.HackedLogOn(Program.UniqueID, new SteamUser.LogOnDetails {
 				Username = SteamLogin,
 				Password = SteamPassword,
 				AuthCode = AuthCode,
@@ -618,14 +618,7 @@ namespace ArchiSteamFarm {
 				TwoFactorCode = TwoFactorAuth,
 				SentryFileHash = sentryHash,
 				ShouldRememberPassword = true
-			};
-
-			if (!IsBeingUsedAsPrimaryAccount) {
-				SteamUser.LogOn(logOnDetails);
-			} else {
-				// TODO: We should use SteamUser.LogOn with proper LoginID once https://github.com/SteamRE/SteamKit/pull/217 gets merged
-				ArchiHandler.HackedLogOn(Program.UniqueID, logOnDetails);
-			}
+			});
 		}
 
 		private async void OnDisconnected(SteamClient.DisconnectedCallback callback) {
@@ -672,13 +665,11 @@ namespace ArchiSteamFarm {
 				SteamID steamID = friend.SteamID;
 				switch (steamID.AccountType) {
 					case EAccountType.Clan:
-						ArchiHandler.DeclineClanInvite(steamID);
+						// TODO: Accept clan invites from master?
 						break;
 					default:
 						if (steamID == SteamMasterID) {
 							SteamFriends.AddFriend(steamID);
-						} else {
-							SteamFriends.RemoveFriend(steamID);
 						}
 						break;
 				}
@@ -802,12 +793,9 @@ namespace ArchiSteamFarm {
 			Logging.LogGenericInfo(BotName, "Logged off of Steam: " + callback.Result);
 
 			switch (callback.Result) {
-				case EResult.LogonSessionReplaced:
-					Logging.LogGenericInfo(BotName, "This is primary account, changing logic alt -> main");
-					IsBeingUsedAsPrimaryAccount = true;
-					break;
 				case EResult.AlreadyLoggedInElsewhere:
 				case EResult.LoggedInElsewhere:
+				case EResult.LogonSessionReplaced:
 					LoggedInElsewhere = true;
 					break;
 			}
