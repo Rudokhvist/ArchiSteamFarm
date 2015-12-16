@@ -73,6 +73,9 @@ namespace ArchiSteamFarm {
 				requestMessage.Headers.Referrer = new Uri(referer);
 			}
 
+			if (httpMethod == HttpMethod.Get) {
+				requestMessage.Headers.IfModifiedSince = new DateTimeOffset(DateTime.Now.AddDays(-1));
+			}
 			HttpResponseMessage responseMessage;
 
 			try {
