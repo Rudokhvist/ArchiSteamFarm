@@ -147,7 +147,8 @@ namespace ArchiSteamFarm {
 		internal static async void OnBotShutdown() {
 			if (Bot.GetRunningBotsCount() == 0) {
 				if (dontexit) {
-					Logging.LogGenericInfo("Main", "No bots are running");
+					Logging.LogGenericInfo("Main", "No bots are running, restarting");
+					await Program.Restart().ConfigureAwait(false);
 				} else {
 					Logging.LogGenericInfo("Main", "No bots are running, exiting");
 					await Utilities.SleepAsync(5000).ConfigureAwait(false); // This might be the only message user gets, consider giving him some time
