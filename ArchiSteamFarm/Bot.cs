@@ -75,7 +75,7 @@ namespace ArchiSteamFarm {
 		internal bool CardDropsRestricted { get; private set; } = false;
 		internal bool UseAsfAsMobileAuthenticator { get; private set; } = false;
 		internal bool ShutdownOnFarmingFinished { get; private set; } = false;
-		internal HashSet<uint> Blacklist { get; private set; } = new HashSet<uint> { 303700, 335590, 368020 };
+		internal HashSet<uint> Blacklist { get; private set; } = new HashSet<uint> { 303700, 335590, 368020, 425280 };
 		internal bool Statistics { get; private set; } = true;
 		internal bool doanswer { get; private set; } = true;
 
@@ -173,15 +173,15 @@ namespace ArchiSteamFarm {
 			var fireAndForget = Task.Run(async () => await Start().ConfigureAwait(false));
 		}
 
-		internal void AcceptAllConfirmations() {
+		internal async Task AcceptAllConfirmations() {
 			if (SteamGuardAccount == null) {
 				return;
 			}
 
-			SteamGuardAccount.RefreshSession();
+			await SteamGuardAccount.RefreshSessionAsync().ConfigureAwait(false);
 
 			try {
-				foreach (Confirmation confirmation in SteamGuardAccount.FetchConfirmations()) {
+				foreach (Confirmation confirmation in await SteamGuardAccount.FetchConfirmationsAsync().ConfigureAwait(false)) {
 					if (SteamGuardAccount.AcceptConfirmation(confirmation)) {
 						Logging.LogGenericInfo(BotName, "Accepting confirmation: Success!");
 					} else {

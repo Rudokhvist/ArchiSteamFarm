@@ -123,6 +123,9 @@
     <Content Include="config\example.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="config\minimal.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\SteamAuth\SteamAuth.csproj">
@@ -139,6 +142,7 @@
     <PostBuildEvent Condition=" '$(OS)' != 'Unix' ">if $(ConfigurationName) == Release (
     mkdir "$(TargetDir)out" "$(TargetDir)out\config"
     copy "$(TargetDir)config\example.xml" "$(TargetDir)out\config"
+    copy "$(TargetDir)config\minimal.xml" "$(TargetDir)out\config"
     "$(SolutionDir)tools\ILMerge.exe" /out:"$(TargetDir)out\ASF.exe" "$(TargetDir)$(TargetName).exe" "$(TargetDir)*.dll" /target:exe /targetplatform:v4,C:\Windows\Microsoft.NET\Framework64\v4.0.30319 /wildcards
     del "$(TargetDir)out\ASF.pdb"
 )</PostBuildEvent>
