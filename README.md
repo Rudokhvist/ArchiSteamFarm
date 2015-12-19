@@ -49,6 +49,7 @@ ASF doesn't require and doesn't interfere in any way with Steam client, which me
 > Remember that bot accepts commands only from ```SteamMasterID```. That property can be configured in the config.
 
 **Command-line arguments**
+
 `-t` try to restart ASF if no bot is running, instead of exiting. Be carefull, if you haven't at least one valid config you would end up in a dead loop. Also, ASF would still exit on `!exit` command (but you need at least one running bot to give this command).
 
 **Supported / Tested Operating-Systems:**
