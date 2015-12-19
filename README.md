@@ -33,14 +33,23 @@ ASF doesn't require and doesn't interfere in any way with Steam client, which me
 - `!2faoff <BOT>` Deactivates 2FA for given bot instance
 - `!exit` Stops whole ASF
 - `!farm` Restarts cards farming module. ASF automatically executes that if any cd-key is successfully claimed
-- `!redeem <KEY>` Redeems cd-key on current bot instance. You can also paste cd-key directly to the chat
+- `!farm <BOT>` Restarts cards farming module for specified bot instance.
+- `!redeem <KEY>` Redeems cd-key on current bot instance.
+- `!redeem <BOT> <KEY>` Redeems cd-key on specified bot instance.
 - `!start <BOT>` Starts given bot instance
-- `!status` Prints current status of ASF
+- `!status` Prints current status of current bot.
+- `!status <BOT>` Prints current status of specified bot.
+- `!status all` Prints current status of all running bots.
 - `!stop` Stops current bot instance
 - `!stop <BOT>` Stops given bot instance
+- `<KEY>` Redeems cd-key on current bot instance.
+- `<LIST OF NEWLINE-SEPARATED KEYS>` Redeem keys on all running bots (limited by a number of keys, of course).
 
 > Commands can be executed via a private chat with your bot.
 > Remember that bot accepts commands only from ```SteamMasterID```. That property can be configured in the config.
+
+**Command-line arguments**
+`-t` try to restart ASF if no bot is running, instead of exiting. Be carefull, if you haven't at least one valid config you would end up in a dead loop. Also, ASF would still exit on `!exit` command (but you need at least one running bot to give this command).
 
 **Supported / Tested Operating-Systems:**
 
