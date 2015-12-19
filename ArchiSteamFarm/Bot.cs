@@ -716,6 +716,7 @@ namespace ArchiSteamFarm {
 						Response2FAOff(steamID);
 						break;
 					case "!exit":
+						Program.dontexit = false;
 						await ShutdownAllBots().ConfigureAwait(false);
 						break;
 					case "!farm":

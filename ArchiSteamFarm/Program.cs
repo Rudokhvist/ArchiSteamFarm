@@ -57,7 +57,7 @@ namespace ArchiSteamFarm {
 
 		internal static readonly uint UniqueID = (uint) Utilities.Random.Next();
 		internal static readonly string Version = AssemblyName.Version.ToString();
-		internal static bool dontexit = false;
+		internal static bool dontexit {get; set; }= false;
 		internal static bool ConsoleIsBusy = false;
 
 		private static async Task CheckForUpdate() {
