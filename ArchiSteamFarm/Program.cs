@@ -43,8 +43,6 @@ namespace ArchiSteamFarm {
 		}
 
 		private const string LatestGithubReleaseURL = "https://api.github.com/repos/JustArchi/ArchiSteamFarm/releases/latest";
-
-		internal const ulong ArchiSCFarmGroup = 103582791440160998;
 		internal const string ConfigDirectoryPath = "config";
 
 		private static readonly SemaphoreSlim SteamSemaphore = new SemaphoreSlim(1);
@@ -55,7 +53,7 @@ namespace ArchiSteamFarm {
 		private static readonly object ConsoleLock = new object();
 		//private static readonly string ExeName = AssemblyName.Name + ".exe";
 
-		internal static readonly uint UniqueID = (uint) Utilities.Random.Next();
+		internal static readonly string LogFile = Path.Combine(Path.GetDirectoryName(ExecutablePath), "log.txt");
 		internal static readonly string Version = AssemblyName.Version.ToString();
 		internal static bool dontexit {get; set; }= false;
 		internal static bool ConsoleIsBusy { get; private set; } = false;
@@ -158,12 +156,11 @@ namespace ArchiSteamFarm {
 		}
 
 		private static void InitServices() {
+			Logging.Init();
 			WebBrowser.Init();
 		}
 
 		private static void Main(string[] args) {
-			Logging.LogGenericInfo("Main", "Archi's Steam Farm, version " + Version);
-
 			if (args.Length != 0) {
 				foreach (string arg in args) {
 					if (arg.Equals("-t", StringComparison.OrdinalIgnoreCase)) {
@@ -172,6 +169,8 @@ namespace ArchiSteamFarm {
 				}
 			}
 			InitServices();
+
+			Logging.LogGenericInfo("Main", "Archi's Steam Farm, version " + Version);
 
 			Task.Run(async () => await CheckForUpdate().ConfigureAwait(false)).Wait();
 

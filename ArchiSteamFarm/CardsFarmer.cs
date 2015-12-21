@@ -135,7 +135,6 @@ namespace ArchiSteamFarm {
 
 		internal async Task StartFarming() {
 			await StopFarming().ConfigureAwait(false);
-
 			await Semaphore.WaitAsync().ConfigureAwait(false);
 
 			if (NowFarming) {
@@ -155,7 +154,6 @@ namespace ArchiSteamFarm {
 				return;
 			}
 
-			NowFarming = false;
 			Logging.LogGenericInfo(Bot.BotName, "Farming is possible!");
 
 			await Semaphore.WaitAsync().ConfigureAwait(false);
@@ -303,7 +301,6 @@ namespace ArchiSteamFarm {
 
 		internal async Task StopFarming() {
 			await Semaphore.WaitAsync().ConfigureAwait(false);
-
 			if (!NowFarming) {
 				Semaphore.Release();
 				return;

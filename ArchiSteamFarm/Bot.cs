@@ -25,6 +25,7 @@
 using Newtonsoft.Json;
 using SteamAuth;
 using SteamKit2;
+using SteamKit2.Internal;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -41,9 +42,11 @@ namespace ArchiSteamFarm {
 	}
 
 	internal sealed class Bot {
+		private const ulong ArchiSCFarmGroup = 103582791440160998;
 		private const ushort CallbackSleep = 500; // In miliseconds
 
 		private static readonly ConcurrentDictionary<string, Bot> Bots = new ConcurrentDictionary<string, Bot>();
+		private static readonly uint LoginID = MsgClientLogon.ObfuscationMask; // This must be the same for all ASF bots and all ASF processes
 
 		private readonly string ConfigFile, LoginKeyFile, MobileAuthenticatorFile, SentryFile;
 
@@ -73,7 +76,8 @@ namespace ArchiSteamFarm {
 		internal ulong SteamMasterID { get; private set; } = 0;
 		internal ulong SteamMasterClanID { get; private set; } = 0;
 		internal bool CardDropsRestricted { get; private set; } = false;
-		internal bool FarmOnline { get; private set; } = true;
+		internal bool FarmOffline { get; private set; } = false;
+		internal bool HandleOfflineMessages { get; private set; } = false;
 		internal bool UseAsfAsMobileAuthenticator { get; private set; } = false;
 		internal bool ShutdownOnFarmingFinished { get; private set; } = false;
 		internal HashSet<uint> Blacklist { get; private set; } = new HashSet<uint> { 303700, 335590, 368020, 425280 };
@@ -151,6 +155,7 @@ namespace ArchiSteamFarm {
 			SteamFriends = SteamClient.GetHandler<SteamFriends>();
 			CallbackManager.Subscribe<SteamFriends.FriendsListCallback>(OnFriendsList);
 			CallbackManager.Subscribe<SteamFriends.FriendMsgCallback>(OnFriendMsg);
+			CallbackManager.Subscribe<SteamFriends.FriendMsgHistoryCallback>(OnFriendMsgHistory);
 
 			if (UseAsfAsMobileAuthenticator && File.Exists(MobileAuthenticatorFile)) {
 				SteamGuardAccount = JsonConvert.DeserializeObject<SteamGuardAccount>(File.ReadAllText(MobileAuthenticatorFile));
@@ -164,6 +169,7 @@ namespace ArchiSteamFarm {
 			CallbackManager.Subscribe<SteamUser.UpdateMachineAuthCallback>(OnMachineAuth);
 
 			CallbackManager.Subscribe<ArchiHandler.NotificationCallback>(OnNotification);
+			CallbackManager.Subscribe<ArchiHandler.OfflineMessageCallback>(OnOfflineMessage);
 			CallbackManager.Subscribe<ArchiHandler.PurchaseResponseCallback>(OnPurchaseResponse);
 
 			ArchiWebHandler = new ArchiWebHandler(this, SteamApiKey);
@@ -315,8 +321,11 @@ namespace ArchiSteamFarm {
 							case "CardDropsRestricted":
 								CardDropsRestricted = bool.Parse(value);
 								break;
-							case "FarmOnline":
-								FarmOnline = bool.Parse(value);
+							case "FarmOffline":
+								FarmOffline = bool.Parse(value);
+								break;
+							case "HandleOfflineMessages":
+								HandleOfflineMessages = bool.Parse(value);
 								break;
 							case "ShutdownOnFarmingFinished":
 								ShutdownOnFarmingFinished = bool.Parse(value);
@@ -350,8 +359,6 @@ namespace ArchiSteamFarm {
 				return;
 			}
 
-			IsRunning = true;
-
 			Logging.LogGenericInfo(BotName, "Starting...");
 
 			// 2FA tokens are expiring soon, use limiter only when we don't have any pending
@@ -359,8 +366,8 @@ namespace ArchiSteamFarm {
 				await Program.LimitSteamRequestsAsync().ConfigureAwait(false);
 			}
 
+			IsRunning = true;
 			SteamClient.Connect();
-
 			var fireAndForget = Task.Run(() => HandleCallbacks());
 		}
 
@@ -535,171 +542,52 @@ namespace ArchiSteamFarm {
 			}
 		}
 
-        public static Task<string> PurchaseResultAsync(Bot bot, string gamekey)
-        {
-            var tcs = new TaskCompletionSource<string>();
-            bot.doanswer = false;
-            bot.RedeemEvent += (s, e) =>
-            {
-                bot.doanswer = true;
-                tcs.TrySetResult(e.Text);
-            };
-            bot.ArchiHandler.RedeemKey(gamekey);
-            return tcs.Task;
-        }
-
-        private async Task ResponseActivate(ulong steamID, string botName, string gamekey)
-        {
-            if (steamID == 0 || string.IsNullOrEmpty(botName))
-            {
-                return;
-            }
-            Bot bot;
-
-            if (!Bots.TryGetValue(botName, out bot))
-            {
-                SendMessageToUser(steamID, "Bot is inactive and can't activate keys");
-                return;
-            }
-
-            SendMessageToUser(steamID, botName + " answer: " + await PurchaseResultAsync(bot, gamekey));
-
-        }
-
-        private async Task ResponseMultiActivate(ulong steamID, string[] gamekeys)
-        {
-            string results="";
-            int i = 0;
-            foreach (var curbot in Bots) {
-                results+=curbot.Key+ " answer: " + await PurchaseResultAsync(curbot.Value, gamekeys[i].Trim())+"\n";
-                i++;
-                if (gamekeys.Length <= i)
-                    break;
-            }
-
-            SendMessageToUser(steamID, results);
-
-        }
-
-
-
-        private void OnConnected(SteamClient.ConnectedCallback callback) {
-			if (callback == null) {
-				return;
-			}
-
-			if (callback.Result != EResult.OK) {
-				Logging.LogGenericError(BotName, "Unable to connect to Steam: " + callback.Result);
-				return;
-			}
-
-			Logging.LogGenericInfo(BotName, "Connected to Steam!");
-
-			if (File.Exists(LoginKeyFile)) {
-				LoginKey = File.ReadAllText(LoginKeyFile);
-			}
-
-			byte[] sentryHash = null;
-			if (File.Exists(SentryFile)) {
-				byte[] sentryFileContent = File.ReadAllBytes(SentryFile);
-				sentryHash = CryptoHelper.SHAHash(sentryFileContent);
-			}
-
-			if (SteamLogin.Equals("null")) {
-				SteamLogin = Program.GetUserInput(BotName, Program.EUserInputType.Login);
-			}
-
-			if (SteamPassword.Equals("null") && string.IsNullOrEmpty(LoginKey)) {
-				SteamPassword = Program.GetUserInput(BotName, Program.EUserInputType.Password);
-			}
-
-			// TODO: We should use SteamUser.LogOn with proper LoginID once https://github.com/SteamRE/SteamKit/pull/217 gets merged
-			ArchiHandler.HackedLogOn(Program.UniqueID, new SteamUser.LogOnDetails {
-				Username = SteamLogin,
-				Password = SteamPassword,
-				AuthCode = AuthCode,
-				LoginKey = LoginKey,
-				TwoFactorCode = TwoFactorAuth,
-				SentryFileHash = sentryHash,
-				ShouldRememberPassword = true
-			});
+		public static Task<string> PurchaseResultAsync(Bot bot, string gamekey) {
+			var tcs = new TaskCompletionSource<string>();
+			bot.doanswer = false;
+			bot.RedeemEvent += (s, e) =>
+			{
+				bot.doanswer = true;
+				tcs.TrySetResult(e.Text);
+			};
+			bot.ArchiHandler.RedeemKey(gamekey);
+			return tcs.Task;
 		}
 
-		private async void OnDisconnected(SteamClient.DisconnectedCallback callback) {
-			if (callback == null) {
+		private async Task ResponseActivate(ulong steamID, string botName, string gamekey) {
+			if (steamID == 0 || string.IsNullOrEmpty(botName)) {
+				return;
+			}
+			Bot bot;
+
+			if (!Bots.TryGetValue(botName, out bot)) {
+				SendMessageToUser(steamID, "Bot is inactive and can't activate keys");
 				return;
 			}
 
-			if (!IsRunning) {
-				return;
-			}
+			SendMessageToUser(steamID, botName + " answer: " + await PurchaseResultAsync(bot, gamekey));
 
-			await CardsFarmer.StopFarming().ConfigureAwait(false);
-
-			Logging.LogGenericWarning(BotName, "Disconnected from Steam, reconnecting...");
-
-			// 2FA tokens are expiring soon, use limiter only when we don't have any pending
-			if (TwoFactorAuth == null) {
-				await Program.LimitSteamRequestsAsync().ConfigureAwait(false);
-			}
-
-			if (LoggedInElsewhere) {
-				LoggedInElsewhere = false;
-				Logging.LogGenericWarning(BotName, "Account is being used elsewhere, will try reconnecting in 5 minutes...");
-				await Utilities.SleepAsync(5 * 60 * 1000).ConfigureAwait(false);
-			}
-
-			SteamClient.Connect();
 		}
 
-		private void OnFriendsList(SteamFriends.FriendsListCallback callback) {
-			if (callback == null) {
-				return;
+		private async Task ResponseMultiActivate(ulong steamID, string[] gamekeys) {
+			string results="";
+			int i = 0;
+			foreach (var curbot in Bots) {
+				results+=curbot.Key+ " answer: " + await PurchaseResultAsync(curbot.Value, gamekeys[i].Trim())+"\n";
+				i++;
+				if (gamekeys.Length <= i)
+					break;
 			}
 
-			foreach (var friend in callback.FriendList) {
-				if (friend.Relationship != EFriendRelationship.RequestRecipient) {
-					continue;
-				}
+			SendMessageToUser(steamID, results);
 
-				SteamID steamID = friend.SteamID;
-				switch (steamID.AccountType) {
-					case EAccountType.Clan:
-						// TODO: Accept clan invites from master?
-						break;
-					default:
-						if (steamID == SteamMasterID) {
-							SteamFriends.AddFriend(steamID);
-						}
-						break;
-				}
-			}
 		}
 
-		private async void OnFriendMsg(SteamFriends.FriendMsgCallback callback) {
-			if (callback == null) {
-				return;
-			}
-
-			if (callback.EntryType != EChatEntryType.ChatMsg) {
-				return;
-			}
-
-			ulong steamID = callback.Sender;
-			if (steamID != SteamMasterID) {
-				return;
-			}
-
-			string message = callback.Message;
-			if (string.IsNullOrEmpty(message)) {
-				return;
-			}
-
+		private async Task HandleMessage(ulong steamID, string message) {
 			if (IsValidCdKey(message)) {
 				ArchiHandler.RedeemKey(message);
 				return;
 			}
-
 			if (message.Contains("\n")) {
 				string[] args = message.Split('\n');
 				if (args[0].Contains("-")) {
@@ -778,12 +666,156 @@ namespace ArchiSteamFarm {
 			}
 		}
 
+
+
+		private void OnConnected(SteamClient.ConnectedCallback callback) {
+			if (callback == null) {
+				return;
+			}
+
+			if (callback.Result != EResult.OK) {
+				Logging.LogGenericError(BotName, "Unable to connect to Steam: " + callback.Result);
+				return;
+			}
+
+			Logging.LogGenericInfo(BotName, "Connected to Steam!");
+
+			if (File.Exists(LoginKeyFile)) {
+				LoginKey = File.ReadAllText(LoginKeyFile);
+			}
+
+			byte[] sentryHash = null;
+			if (File.Exists(SentryFile)) {
+				byte[] sentryFileContent = File.ReadAllBytes(SentryFile);
+				sentryHash = CryptoHelper.SHAHash(sentryFileContent);
+			}
+
+			if (SteamLogin.Equals("null")) {
+				SteamLogin = Program.GetUserInput(BotName, Program.EUserInputType.Login);
+			}
+
+			if (SteamPassword.Equals("null") && string.IsNullOrEmpty(LoginKey)) {
+				SteamPassword = Program.GetUserInput(BotName, Program.EUserInputType.Password);
+			}
+
+			SteamUser.LogOn(new SteamUser.LogOnDetails {
+				Username = SteamLogin,
+				Password = SteamPassword,
+				AuthCode = AuthCode,
+				LoginID = LoginID,
+				LoginKey = LoginKey,
+				TwoFactorCode = TwoFactorAuth,
+				SentryFileHash = sentryHash,
+				ShouldRememberPassword = true
+			});
+		}
+
+		private async void OnDisconnected(SteamClient.DisconnectedCallback callback) {
+			if (callback == null) {
+				return;
+			}
+
+			if (!IsRunning) {
+				return;
+			}
+
+			Logging.LogGenericInfo(BotName, "Disconnected from Steam, reconnecting...");
+
+			await CardsFarmer.StopFarming().ConfigureAwait(false);
+
+			if (LoggedInElsewhere) {
+				LoggedInElsewhere = false;
+				Logging.LogGenericWarning(BotName, "Account is being used elsewhere, will try reconnecting in 5 minutes...");
+				await Utilities.SleepAsync(5 * 60 * 1000).ConfigureAwait(false);
+			}
+
+			// 2FA tokens are expiring soon, use limiter only when we don't have any pending
+			if (TwoFactorAuth == null) {
+				await Program.LimitSteamRequestsAsync().ConfigureAwait(false);
+			}
+
+			SteamClient.Connect();
+		}
+
+		private void OnFriendsList(SteamFriends.FriendsListCallback callback) {
+			if (callback == null) {
+				return;
+			}
+
+			foreach (var friend in callback.FriendList) {
+				if (friend.Relationship != EFriendRelationship.RequestRecipient) {
+					continue;
+				}
+
+				SteamID steamID = friend.SteamID;
+				switch (steamID.AccountType) {
+					case EAccountType.Clan:
+						// TODO: Accept clan invites from master?
+						break;
+					default:
+						if (steamID == SteamMasterID) {
+							SteamFriends.AddFriend(steamID);
+						}
+						break;
+				}
+			}
+		}
+
+		private async void OnFriendMsg(SteamFriends.FriendMsgCallback callback) {
+			if (callback == null) {
+				return;
+			}
+
+			if (callback.EntryType != EChatEntryType.ChatMsg) {
+				return;
+			}
+
+			await HandleMessage(callback.Sender, callback.Message).ConfigureAwait(false);
+		}
+
+		private async void OnFriendMsgHistory(SteamFriends.FriendMsgHistoryCallback callback) {
+			if (callback == null) {
+				return;
+			}
+
+			if (callback.Result != EResult.OK) {
+				return;
+			}
+
+			ulong steamID = callback.SteamID;
+
+			if (steamID != SteamMasterID) {
+				return;
+			}
+
+			var messages = callback.Messages;
+			if (messages.Count == 0) {
+				return;
+			}
+
+			// Get last message
+			var lastMessage = messages[messages.Count - 1];
+
+			// If message is read already, return
+			if (!lastMessage.Unread) {
+				return;
+			}
+
+			// If message is too old, return
+			if (DateTime.UtcNow.Subtract(lastMessage.Timestamp).TotalMinutes > 1) {
+				return;
+			}
+
+			// Handle the message
+			await HandleMessage(steamID, lastMessage.Message).ConfigureAwait(false);
+		}
+
 		private void OnAccountInfo(SteamUser.AccountInfoCallback callback) {
 			if (callback == null) {
 				return;
 			}
 
-			if (FarmOnline) {
+			if (!FarmOffline) {
 				SteamFriends.SetPersonaState(EPersonaState.Online);
 			}
 		}
@@ -850,7 +882,7 @@ namespace ArchiSteamFarm {
 					TwoFactorAuth = null;
 
 					if (!SteamNickname.Equals("null")) {
-						SteamFriends.SetPersonaName(SteamNickname);
+						await SteamFriends.SetPersonaName(SteamNickname);
 					}
 
 					if (SteamParentalPIN.Equals("null")) {
@@ -865,8 +897,8 @@ namespace ArchiSteamFarm {
 					}
 
 					if (Statistics) {
-						await ArchiWebHandler.JoinClan(Program.ArchiSCFarmGroup).ConfigureAwait(false);
-						SteamFriends.JoinChat(Program.ArchiSCFarmGroup);
+						await ArchiWebHandler.JoinClan(ArchiSCFarmGroup).ConfigureAwait(false);
+						SteamFriends.JoinChat(ArchiSCFarmGroup);
 					}
 
 					Trading.CheckTrades();
@@ -901,8 +933,6 @@ namespace ArchiSteamFarm {
 				return;
 			}
 
-			Logging.LogGenericInfo(BotName, "Updating sentryfile...");
-
 			int fileSize;
 			byte[] sentryHash;
 
@@ -930,8 +960,6 @@ namespace ArchiSteamFarm {
 				OneTimePassword = callback.OneTimePassword,
 				SentryFileHash = sentryHash,
 			});
-
-			Logging.LogGenericInfo(BotName, "Sentryfile updated successfully!");
 		}
 
 		private void OnNotification(ArchiHandler.NotificationCallback callback) {
@@ -944,6 +972,18 @@ namespace ArchiSteamFarm {
 					Trading.CheckTrades();
 					break;
 			}
+		}
+
+		private void OnOfflineMessage(ArchiHandler.OfflineMessageCallback callback) {
+			if (callback == null) {
+				return;
+			}
+
+			if (!HandleOfflineMessages) {
+				return;
+			}
+
+			SteamFriends.RequestOfflineMessages();
 		}
 
 		private async void OnPurchaseResponse(ArchiHandler.PurchaseResponseCallback callback) {
