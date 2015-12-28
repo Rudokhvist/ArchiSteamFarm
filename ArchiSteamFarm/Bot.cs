@@ -48,6 +48,8 @@ namespace ArchiSteamFarm {
 		private static readonly ConcurrentDictionary<string, Bot> Bots = new ConcurrentDictionary<string, Bot>();
 		private static readonly uint LoginID = MsgClientLogon.ObfuscationMask; // This must be the same for all ASF bots and all ASF processes
 
+		internal static readonly HashSet<uint> GlobalBlacklist = new HashSet<uint> { 303700, 335590, 368020, 425280 };
+
 		private readonly string ConfigFile, LoginKeyFile, MobileAuthenticatorFile, SentryFile;
 
 		internal readonly string BotName;
@@ -60,8 +62,9 @@ namespace ArchiSteamFarm {
 		internal readonly SteamUser SteamUser;
 		internal readonly Trading Trading;
 
+		private bool KeepRunning = true;
+		private bool InvalidPassword = false;
 		private bool LoggedInElsewhere = false;
-		private bool IsRunning = false;
 		private string AuthCode, LoginKey, TwoFactorAuth;
 
 		internal SteamGuardAccount SteamGuardAccount { get; private set; }
@@ -80,7 +83,7 @@ namespace ArchiSteamFarm {
 		internal bool HandleOfflineMessages { get; private set; } = false;
 		internal bool UseAsfAsMobileAuthenticator { get; private set; } = false;
 		internal bool ShutdownOnFarmingFinished { get; private set; } = false;
-		internal HashSet<uint> Blacklist { get; private set; } = new HashSet<uint> { 303700, 335590, 368020, 425280 };
+		internal HashSet<uint> Blacklist { get; private set; } = new HashSet<uint>();
 		internal bool Statistics { get; private set; } = true;
 		internal bool doanswer { get; private set; } = true;
 
@@ -153,6 +156,8 @@ namespace ArchiSteamFarm {
 			CallbackManager.Subscribe<SteamClient.DisconnectedCallback>(OnDisconnected);
 
 			SteamFriends = SteamClient.GetHandler<SteamFriends>();
+			CallbackManager.Subscribe<SteamFriends.ChatInviteCallback>(OnChatInvite);
+			CallbackManager.Subscribe<SteamFriends.ChatMsgCallback>(OnChatMsg);
 			CallbackManager.Subscribe<SteamFriends.FriendsListCallback>(OnFriendsList);
 			CallbackManager.Subscribe<SteamFriends.FriendMsgCallback>(OnFriendMsg);
 			CallbackManager.Subscribe<SteamFriends.FriendMsgHistoryCallback>(OnFriendMsgHistory);
@@ -177,7 +182,8 @@ namespace ArchiSteamFarm {
 			Trading = new Trading(this);
 
 			// Start
-			var fireAndForget = Task.Run(async () => await Start().ConfigureAwait(false));
+			var handleCallbacks = Task.Run(() => HandleCallbacks());
+			var start = Task.Run(async () => await Start().ConfigureAwait(false));
 		}
 
 		internal async Task AcceptAllConfirmations() {
@@ -354,8 +360,13 @@ namespace ArchiSteamFarm {
 			return true;
 		}
 
+		internal async Task Restart() {
+			await Stop().ConfigureAwait(false);
+			await Start().ConfigureAwait(false);
+		}
+
 		internal async Task Start() {
-			if (IsRunning) {
+			if (SteamClient.IsConnected) {
 				return;
 			}
 
@@ -366,18 +377,18 @@ namespace ArchiSteamFarm {
 				await Program.LimitSteamRequestsAsync().ConfigureAwait(false);
 			}
 
-			IsRunning = true;
 			SteamClient.Connect();
-			var fireAndForget = Task.Run(() => HandleCallbacks());
 		}
 
 		internal async Task Stop() {
-			if (!IsRunning) {
+			if (!SteamClient.IsConnected) {
 				return;
 			}
 
-			await CardsFarmer.StopFarming().ConfigureAwait(false);
-			IsRunning = false;
+			await Utilities.SleepAsync(0); // TODO: This is here only to make VS happy, for now
+
+			Logging.LogGenericInfo(BotName, "Stopping...");
+
 			SteamClient.Disconnect();
 		}
 
@@ -392,6 +403,7 @@ namespace ArchiSteamFarm {
 				}
 			}
 
+			bot.KeepRunning = false;
 			await bot.Stop().ConfigureAwait(false);
 			Bots.TryRemove(bot.BotName, out bot);
 
@@ -407,19 +419,23 @@ namespace ArchiSteamFarm {
 
 		private void HandleCallbacks() {
 			TimeSpan timeSpan = TimeSpan.FromMilliseconds(CallbackSleep);
-			while (IsRunning) {
+			while (KeepRunning) {
 				CallbackManager.RunWaitCallbacks(timeSpan);
 			}
 		}
 
-		private void SendMessageToUser(ulong steamID, string message) {
+		private void SendMessage(ulong steamID, string message) {
 			if (steamID == 0 || string.IsNullOrEmpty(message)) {
 				return;
 			}
 
-			SteamFriends.SendChatMessage(steamID, EChatEntryType.ChatMsg, message);
+			// TODO: I really need something better
+			if (steamID < 110300000000000000) {
+				SteamFriends.SendChatMessage(steamID, EChatEntryType.ChatMsg, message);
+			} else {
+				SteamFriends.SendChatRoomMessage(steamID, EChatEntryType.ChatMsg, message);
+			}
 		}
-
 
 		private void ResponseStatus(ulong steamID, string botName = null) {
 			if (steamID == 0) {
@@ -443,15 +459,15 @@ namespace ArchiSteamFarm {
 				}
 
 				if (!Bots.TryGetValue(botName, out bot)) {
-					SendMessageToUser(steamID, "Couldn't find any bot named " + botName + "!");
+					SendMessage(steamID, "Couldn't find any bot named " + botName + "!");
 					return;
 				}
 			}
 
 			if (bot.CardsFarmer.CurrentGamesFarming.Count > 0) {
-				SendMessageToUser(steamID, "Bot " + bot.BotName + " is currently farming appIDs: " + string.Join(", ", bot.CardsFarmer.CurrentGamesFarming) + " and has a total of " + bot.CardsFarmer.GamesToFarm.Count + " games left to farm");
+				SendMessage(steamID, "Bot " + bot.BotName + " is currently farming appIDs: " + string.Join(", ", bot.CardsFarmer.CurrentGamesFarming) + " and has a total of " + bot.CardsFarmer.GamesToFarm.Count + " games left to farm");
 			}
-			SendMessageToUser(steamID, "Currently " + Bots.Count + " bots are running");
+			SendMessage(steamID, "Currently " + Bots.Count + " bots are running");
 		}
 
 		private void Response2FA(ulong steamID, string botName = null) {
@@ -465,18 +481,18 @@ namespace ArchiSteamFarm {
 				bot = this;
 			} else {
 				if (!Bots.TryGetValue(botName, out bot)) {
-					SendMessageToUser(steamID, "Couldn't find any bot named " + botName + "!");
+					SendMessage(steamID, "Couldn't find any bot named " + botName + "!");
 					return;
 				}
 			}
 
 			if (bot.SteamGuardAccount == null) {
-				SendMessageToUser(steamID, "That bot doesn't have ASF 2FA enabled!");
+				SendMessage(steamID, "That bot doesn't have ASF 2FA enabled!");
 				return;
 			}
 
 			long timeLeft = 30 - TimeAligner.GetSteamTime() % 30;
-			SendMessageToUser(steamID, "2FA Token: " + bot.SteamGuardAccount.GenerateSteamGuardCode() + " (expires in " + timeLeft + " seconds)");
+			SendMessage(steamID, "2FA Token: " + bot.SteamGuardAccount.GenerateSteamGuardCode() + " (expires in " + timeLeft + " seconds)");
 		}
 
 		private void Response2FAOff(ulong steamID, string botName = null) {
@@ -490,20 +506,20 @@ namespace ArchiSteamFarm {
 				bot = this;
 			} else {
 				if (!Bots.TryGetValue(botName, out bot)) {
-					SendMessageToUser(steamID, "Couldn't find any bot named " + botName + "!");
+					SendMessage(steamID, "Couldn't find any bot named " + botName + "!");
 					return;
 				}
 			}
 
 			if (bot.SteamGuardAccount == null) {
-				SendMessageToUser(steamID, "That bot doesn't have ASF 2FA enabled!");
+				SendMessage(steamID, "That bot doesn't have ASF 2FA enabled!");
 				return;
 			}
 
 			if (bot.DelinkMobileAuthenticator()) {
-				SendMessageToUser(steamID, "Done! Bot is no longer using ASF 2FA");
+				SendMessage(steamID, "Done! Bot is no longer using ASF 2FA");
 			} else {
-				SendMessageToUser(steamID, "Something went wrong!");
+				SendMessage(steamID, "Something went wrong!");
 			}
 		}
 
@@ -513,15 +529,15 @@ namespace ArchiSteamFarm {
 			}
 
 			if (Bots.ContainsKey(botName)) {
-				SendMessageToUser(steamID, "That bot instance is already running!");
+				SendMessage(steamID, "That bot instance is already running!");
 				return;
 			}
 
 			new Bot(botName);
 			if (Bots.ContainsKey(botName)) {
-				SendMessageToUser(steamID, "Done!");
+				SendMessage(steamID, "Done!");
 			} else {
-				SendMessageToUser(steamID, "That bot instance failed to start, make sure that XML config exists and bot is active!");
+				SendMessage(steamID, "That bot instance failed to start, make sure that XML config exists and bot is active!");
 			}
 		}
 
@@ -531,14 +547,14 @@ namespace ArchiSteamFarm {
 			}
 
 			if (!Bots.ContainsKey(botName)) {
-				SendMessageToUser(steamID, "That bot instance is already inactive!");
+				SendMessage(steamID, "That bot instance is already inactive!");
 				return;
 			}
 
 			if (await Shutdown(botName).ConfigureAwait(false)) {
-				SendMessageToUser(steamID, "Done!");
+				SendMessage(steamID, "Done!");
 			} else {
-				SendMessageToUser(steamID, "That bot instance failed to shutdown!");
+				SendMessage(steamID, "That bot instance failed to shutdown!");
 			}
 		}
 
@@ -611,11 +627,6 @@ namespace ArchiSteamFarm {
 						Program.dontexit = false;
 						await ShutdownAllBots().ConfigureAwait(false);
 						break;
-					case "!farm":
-						SendMessageToUser(steamID, "Please wait...");
-						await CardsFarmer.StartFarming().ConfigureAwait(false);
-						SendMessageToUser(steamID, "Done!");
-						break;
 					case "!restart":
 						await Program.Restart().ConfigureAwait(false);
 						break;
@@ -666,8 +677,6 @@ namespace ArchiSteamFarm {
 			}
 		}
 
-
-
 		private void OnConnected(SteamClient.ConnectedCallback callback) {
 			if (callback == null) {
 				return;
@@ -715,19 +724,35 @@ namespace ArchiSteamFarm {
 				return;
 			}
 
-			if (!IsRunning) {
+			Logging.LogGenericInfo(BotName, "Disconnected from Steam!");
+			await CardsFarmer.StopFarming().ConfigureAwait(false);
+
+			if (!KeepRunning) {
 				return;
 			}
 
-			Logging.LogGenericInfo(BotName, "Disconnected from Steam, reconnecting...");
-
-			await CardsFarmer.StopFarming().ConfigureAwait(false);
-
-			if (LoggedInElsewhere) {
-				LoggedInElsewhere = false;
-				Logging.LogGenericWarning(BotName, "Account is being used elsewhere, will try reconnecting in 5 minutes...");
-				await Utilities.SleepAsync(5 * 60 * 1000).ConfigureAwait(false);
+			// If we initiated disconnect, do not attempt to reconnect
+			if (callback.UserInitiated) {
+				return;
 			}
+
+			if (InvalidPassword) {
+				InvalidPassword = false;
+				if (!string.IsNullOrEmpty(LoginKey)) { // InvalidPassword means usually that login key has expired, if we used it
+					LoginKey = null;
+					File.Delete(LoginKeyFile);
+					Logging.LogGenericInfo(BotName, "Removed expired login key");
+				} else { // If we didn't use login key, InvalidPassword usually means we got captcha or other network-based throttling
+					Logging.LogGenericInfo(BotName, "Will retry after 25 minutes...");
+					await Utilities.SleepAsync(25 * 60 * 1000).ConfigureAwait(false); // Captcha disappears after around 20 minutes, so we make it 25
+				}
+			} else if (LoggedInElsewhere) {
+				LoggedInElsewhere = false;
+				Logging.LogGenericWarning(BotName, "Account is being used elsewhere, will try reconnecting in 30 minutes...");
+				await Utilities.SleepAsync(30 * 60 * 1000).ConfigureAwait(false);
+			}
+
+			Logging.LogGenericInfo(BotName, "Reconnecting...");
 
 			// 2FA tokens are expiring soon, use limiter only when we don't have any pending
 			if (TwoFactorAuth == null) {
@@ -735,6 +760,36 @@ namespace ArchiSteamFarm {
 			}
 
 			SteamClient.Connect();
+		}
+
+		private void OnChatInvite(SteamFriends.ChatInviteCallback callback) {
+			if (callback == null) {
+				return;
+			}
+
+			ulong steamID = callback.PatronID;
+			if (steamID != SteamMasterID) {
+				return;
+			}
+
+			SteamFriends.JoinChat(callback.ChatRoomID);
+		}
+
+		private async void OnChatMsg(SteamFriends.ChatMsgCallback callback) {
+			if (callback == null) {
+				return;
+			}
+
+			if (callback.ChatMsgType != EChatEntryType.ChatMsg) {
+				return;
+			}
+
+			ulong steamID = callback.ChatterID;
+			if (steamID != SteamMasterID) {
+				return;
+			}
+
+			await HandleMessage(callback.ChatRoomID, callback.Message).ConfigureAwait(false);
 		}
 
 		private void OnFriendsList(SteamFriends.FriendsListCallback callback) {
@@ -770,7 +825,12 @@ namespace ArchiSteamFarm {
 				return;
 			}
 
-			await HandleMessage(callback.Sender, callback.Message).ConfigureAwait(false);
+			ulong steamID = callback.Sender;
+			if (steamID != SteamMasterID) {
+				return;
+			}
+
+			await HandleMessage(steamID, callback.Message).ConfigureAwait(false);
 		}
 
 		private async void OnFriendMsgHistory(SteamFriends.FriendMsgHistoryCallback callback) {
@@ -854,21 +914,8 @@ namespace ArchiSteamFarm {
 					}
 					break;
 				case EResult.InvalidPassword:
+					InvalidPassword = true;
 					Logging.LogGenericWarning(BotName, "Unable to login to Steam: " + result);
-					await Stop().ConfigureAwait(false);
-
-					// InvalidPassword means usually that login key has expired, if we used it
-					if (!string.IsNullOrEmpty(LoginKey)) {
-						LoginKey = null;
-						File.Delete(LoginKeyFile);
-						Logging.LogGenericInfo(BotName, "Removed expired login key, reconnecting...");
-					} else { // If we didn't use login key, InvalidPassword usually means we got captcha or other network-based throttling
-						Logging.LogGenericInfo(BotName, "Will retry after 25 minutes...");
-						await Utilities.SleepAsync(25 * 60 * 1000).ConfigureAwait(false); // Captcha disappears after around 20 minutes, so we make it 25
-					}
-
-					// After all of that, try again
-					await Start().ConfigureAwait(false);
 					break;
 				case EResult.OK:
 					Logging.LogGenericInfo(BotName, "Successfully logged on!");
@@ -889,7 +936,10 @@ namespace ArchiSteamFarm {
 						SteamParentalPIN = Program.GetUserInput(BotName, Program.EUserInputType.SteamParentalPIN);
 					}
 
-					await ArchiWebHandler.Init(SteamClient, callback.WebAPIUserNonce, callback.VanityURL, SteamParentalPIN).ConfigureAwait(false);
+					if (!await ArchiWebHandler.Init(SteamClient, callback.WebAPIUserNonce, callback.VanityURL, SteamParentalPIN).ConfigureAwait(false)) {
+						await Restart().ConfigureAwait(false);
+						return;
+					}
 
 					if (SteamMasterClanID != 0) {
 						await ArchiWebHandler.JoinClan(SteamMasterClanID).ConfigureAwait(false);
@@ -905,14 +955,13 @@ namespace ArchiSteamFarm {
 
 					await CardsFarmer.StartFarming().ConfigureAwait(false);
 					break;
+				case EResult.NoConnection:
 				case EResult.ServiceUnavailable:
 				case EResult.Timeout:
 				case EResult.TryAnotherCM:
-					Logging.LogGenericWarning(BotName, "Unable to login to Steam: " + result + ", retrying...");
-					await Stop().ConfigureAwait(false);
-					await Start().ConfigureAwait(false);
+					Logging.LogGenericWarning(BotName, "Unable to login to Steam: " + result);
 					break;
-				default:
+				default: // Unexpected result, shutdown immediately
 					Logging.LogGenericWarning(BotName, "Unable to login to Steam: " + result);
 					await Shutdown().ConfigureAwait(false);
 					break;
@@ -993,16 +1042,15 @@ namespace ArchiSteamFarm {
 
 			var purchaseResult = callback.PurchaseResult;
 			var items = callback.Items;
-            if (doanswer)
-            {
-                SendMessageToUser(SteamMasterID, "Status: " + purchaseResult + " | Items: " + string.Join("", items));
-            } else
-            {
-                RedeemEvent(this, new RedeemEventArgs("Status: " + purchaseResult + " | Items: " + string.Join("", items)));
-            }
+			if (doanswer) {
+				SendMessage(SteamMasterID, "Status: " + purchaseResult + " | Items: " + string.Join("", items));
+			} else {
+				RedeemEvent(this, new RedeemEventArgs("Status: " + purchaseResult + " | Items: " + string.Join("", items)));
+			}
 
 			if (purchaseResult == ArchiHandler.PurchaseResponseCallback.EPurchaseResult.OK) {
-				await CardsFarmer.StartFarming().ConfigureAwait(false);
+				// We will restart CF module to recalculate current status and decide about new optimal approach
+				await CardsFarmer.RestartFarming().ConfigureAwait(false);
 			}
 		}
 	}
