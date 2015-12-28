@@ -450,11 +450,11 @@ namespace ArchiSteamFarm {
 				if (botName.Equals("all")) {
 					foreach (var curbot in Bots) {
 						if (curbot.Value.CardsFarmer.CurrentGamesFarming.Count == 0)
-							SendMessageToUser(steamID, "Bot " + curbot.Key + " is not farming.");
+							SendMessage(steamID, "Bot " + curbot.Key + " is not farming.");
 						else
-							SendMessageToUser(steamID, "Bot " + curbot.Key + " is currently farming appIDs: " + string.Join(", ", 	curbot.Value.CardsFarmer.CurrentGamesFarming) + " and has a total of " + curbot.Value.CardsFarmer.GamesToFarm.Count + " games left to farm");
+							SendMessage(steamID, "Bot " + curbot.Key + " is currently farming appIDs: " + string.Join(", ", 	curbot.Value.CardsFarmer.CurrentGamesFarming) + " and has a total of " + curbot.Value.CardsFarmer.GamesToFarm.Count + " games left to farm");
 					}
-					SendMessageToUser(steamID, "Currently " + Bots.Count + " bots are running");
+					SendMessage(steamID, "Currently " + Bots.Count + " bots are running");
 					return;
 				}
 
@@ -577,11 +577,11 @@ namespace ArchiSteamFarm {
 			Bot bot;
 
 			if (!Bots.TryGetValue(botName, out bot)) {
-				SendMessageToUser(steamID, "Bot is inactive and can't activate keys");
+				SendMessage(steamID, "Bot is inactive and can't activate keys");
 				return;
 			}
 
-			SendMessageToUser(steamID, botName + " answer: " + await PurchaseResultAsync(bot, gamekey));
+			SendMessage(steamID, botName + " answer: " + await PurchaseResultAsync(bot, gamekey));
 
 		}
 
@@ -595,7 +595,7 @@ namespace ArchiSteamFarm {
 					break;
 			}
 
-			SendMessageToUser(steamID, results);
+			SendMessage(steamID, results);
 
 		}
 
@@ -624,7 +624,6 @@ namespace ArchiSteamFarm {
 						Response2FAOff(steamID);
 						break;
 					case "!exit":
-						Program.dontexit = false;
 						await ShutdownAllBots().ConfigureAwait(false);
 						break;
 					case "!restart":
@@ -649,12 +648,12 @@ namespace ArchiSteamFarm {
 					case "!farm": {
 						Bot botToFarm;
 						if (!Bots.TryGetValue(args[1], out botToFarm)) {
-							SendMessageToUser(steamID, "Bot is inactive and cant farm");
+							SendMessage(steamID, "Bot is inactive and cant farm");
 							break;
 						}
-						SendMessageToUser(steamID, "Please wait...");
+						SendMessage(steamID, "Please wait...");
 						await botToFarm.CardsFarmer.StartFarming().ConfigureAwait(false);
-						SendMessageToUser(steamID, "Done!");
+						SendMessage(steamID, "Done!");
 						break;
 						}
 					case "!redeem":
