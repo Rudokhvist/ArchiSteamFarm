@@ -55,7 +55,6 @@ namespace ArchiSteamFarm {
 
 		internal static readonly string LogFile = Path.Combine(Path.GetDirectoryName(ExecutablePath), "log.txt");
 		internal static readonly string Version = AssemblyName.Version.ToString();
-		internal static bool dontexit {get; set; }= false;
 		internal static bool ConsoleIsBusy { get; private set; } = false;
 
 		private static async Task CheckForUpdate() {
@@ -144,14 +143,9 @@ namespace ArchiSteamFarm {
 
 		internal static async void OnBotShutdown() {
 			if (Bot.GetRunningBotsCount() == 0) {
-				if (dontexit) {
-					Logging.LogGenericInfo("Main", "No bots are running, restarting");
-					await Program.Restart().ConfigureAwait(false);
-				} else {
-					Logging.LogGenericInfo("Main", "No bots are running, exiting");
-					await Utilities.SleepAsync(5000).ConfigureAwait(false); // This might be the only message user gets, consider giving him some time
-					ShutdownResetEvent.Set();
-				}
+				Logging.LogGenericInfo("Main", "No bots are running, exiting");
+				await Utilities.SleepAsync(5000).ConfigureAwait(false); // This might be the only message user gets, consider giving him some time
+				ShutdownResetEvent.Set();
 			}
 		}
 
@@ -161,13 +155,6 @@ namespace ArchiSteamFarm {
 		}
 
 		private static void Main(string[] args) {
-			if (args.Length != 0) {
-				foreach (string arg in args) {
-					if (arg.Equals("-t", StringComparison.OrdinalIgnoreCase)) {
-						dontexit = true;
-					}
-				}
-			}
 			InitServices();
 
 			Logging.LogGenericInfo("Main", "Archi's Steam Farm, version " + Version);
