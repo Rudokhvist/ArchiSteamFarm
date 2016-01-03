@@ -61,7 +61,9 @@ namespace ArchiSteamFarm {
 						if (args.Length<3) {
 							return "Error";
 						} else {
-							return Bot.ActivateKey(args[1],args[2]);
+							Task<string> task=Bot.RedeemKey(args[2],args[1]);
+							task.Wait();
+							return task.Result;
 						}
 					case "start":
 						return Bot.StartBot(args[1]);

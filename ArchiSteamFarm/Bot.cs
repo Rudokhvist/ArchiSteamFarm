@@ -36,11 +36,6 @@ using System.Xml;
 
 namespace ArchiSteamFarm {
 
-	public class RedeemEventArgs : EventArgs {
-		public RedeemEventArgs(string s) { Text = s; }
-		public string Text { get; private set; } // readonly
-	}
-
 	internal sealed class Bot {
 		private const ulong ArchiSCFarmGroup = 103582791440160998;
 		private const ushort CallbackSleep = 500; // In miliseconds
@@ -85,17 +80,10 @@ namespace ArchiSteamFarm {
 		internal bool ShutdownOnFarmingFinished { get; private set; } = false;
 		internal HashSet<uint> Blacklist { get; private set; } = new HashSet<uint>();
 		internal bool Statistics { get; private set; } = true;
-		internal bool doanswer { get; private set; } = true;
 
 		internal ConcurrentDictionary<string, Bot> GetBots (){
 			 return Bots;
 		}
-
-		// Declare the delegate (if using non-generic pattern).
-		public delegate void RedeemEventHandler(object sender, RedeemEventArgs e);
-		
-		// Declare the event.
-		public event RedeemEventHandler RedeemEvent { add{} remove{} }
 
 		internal static bool IsValidCdKey(string key) {
 			if (string.IsNullOrEmpty(key)) {
@@ -177,7 +165,7 @@ namespace ArchiSteamFarm {
 			CallbackManager.Subscribe<SteamUser.LoginKeyCallback>(OnLoginKey);
 			CallbackManager.Subscribe<SteamUser.UpdateMachineAuthCallback>(OnMachineAuth);
 
-			CallbackManager.Subscribe<ArchiHandler.NotificationCallback>(OnNotification);
+			CallbackManager.Subscribe<ArchiHandler.NotificationsCallback>(OnNotifications);
 			CallbackManager.Subscribe<ArchiHandler.OfflineMessageCallback>(OnOfflineMessage);
 			CallbackManager.Subscribe<ArchiHandler.PurchaseResponseCallback>(OnPurchaseResponse);
 
@@ -591,6 +579,43 @@ namespace ArchiSteamFarm {
 			}
 
 		}
+		internal static async Task<string> RedeemKey (string key, string botName) {
+			Bot bot;
+
+	 		if (!Bots.TryGetValue(botName, out bot)) { 
+				return  "That bot instance is inactive!";
+			}
+			
+			ArchiHandler.PurchaseResponseCallback result;
+			try {
+				result = await bot.ArchiHandler.RedeemKey(key);
+			} catch (Exception e) {
+				Logging.LogGenericException(bot.BotName, e);
+				return "Error";
+			}
+
+			if (result == null) {
+				return "Error";
+			}
+
+			var purchaseResult = result.PurchaseResult;
+			var items = result.Items;
+
+			return purchaseResult + " | Items: " + string.Join("", items);
+		}
+
+		private async Task ResponseRedeem(ulong steamID, string key, string botName = null) {
+			if (steamID == 0 || string.IsNullOrEmpty(key)) {
+				return;
+			}
+
+			if (string.IsNullOrEmpty(botName)) {
+				SendMessage(steamID, "Status: " + await RedeemKey(key, this.BotName).ConfigureAwait(false));
+			} else {
+				SendMessage(steamID, botName+" answer: " + await RedeemKey(key, botName).ConfigureAwait(false));
+			}
+		}
+
 		private void ResponseStart(ulong steamID, string botName) {
 			if (steamID == 0 || string.IsNullOrEmpty(botName)) {
 				return;
@@ -644,49 +669,11 @@ namespace ArchiSteamFarm {
 			}
 		}
 
-		public static Task<string> PurchaseResultAsync(Bot bot, string gamekey) {
-			var tcs = new TaskCompletionSource<string>();
-			bot.doanswer = false;
-			bot.RedeemEvent += (s, e) =>
-			{
-				bot.doanswer = true;
-				tcs.TrySetResult(e.Text);
-			};
-			bot.ArchiHandler.RedeemKey(gamekey);
-			return tcs.Task;
-		}
-
-		internal static string ActivateKey(string botName,string gamekey) {
-			Bot bot;
- 			if (!Bots.TryGetValue(botName, out bot)) {
-				return "Bot is inactive and can't activate keys";
-			}
-			Task<string> task = PurchaseResultAsync(bot, gamekey);
-			task.Wait();
-			return task.Result;
-
-		}
-
-		private async Task ResponseActivate(ulong steamID, string botName, string gamekey) {
-			if (steamID == 0 || string.IsNullOrEmpty(botName)) {
-				return;
-			}
-			Bot bot;
-
-			if (!Bots.TryGetValue(botName, out bot)) {
-				SendMessage(steamID, "Bot is inactive and can't activate keys");
-				return;
-			}
-
-			SendMessage(steamID, botName + " answer: " + await PurchaseResultAsync(bot, gamekey));
-
-		}
-
 		private async Task ResponseMultiActivate(ulong steamID, string[] gamekeys) {
 			string results="";
 			int i = 0;
 			foreach (var curbot in Bots) {
-				results+=curbot.Key+ " answer: " + await PurchaseResultAsync(curbot.Value, gamekeys[i].Trim())+"\n";
+				results+=curbot.Key+ " answer: " + await RedeemKey(gamekeys[i].Trim(),curbot.Key).ConfigureAwait(false)+"\n";
 				i++;
 				if (gamekeys.Length <= i)
 					break;
@@ -698,7 +685,7 @@ namespace ArchiSteamFarm {
 
 		private async Task HandleMessage(ulong steamID, string message) {
 			if (IsValidCdKey(message)) {
-				ArchiHandler.RedeemKey(message);
+				await ResponseRedeem(steamID, message).ConfigureAwait(false);
 				return;
 			}
 			if (message.Contains("\n")) {
@@ -755,9 +742,9 @@ namespace ArchiSteamFarm {
 						}
 					case "!redeem":
 						if (args.Length == 2) {
-							ArchiHandler.RedeemKey(args[1]);
+							await ResponseRedeem(steamID, args[1]).ConfigureAwait(false);
 						} else if (args.Length == 3) {
-							await ResponseActivate(steamID, args[1], args[2]);
+							await ResponseRedeem(steamID, args[2], args[1]).ConfigureAwait(false);
 						}
 						break;
 					case "!start":
@@ -1107,15 +1094,22 @@ namespace ArchiSteamFarm {
 			});
 		}
 
-		private void OnNotification(ArchiHandler.NotificationCallback callback) {
+		private void OnNotifications(ArchiHandler.NotificationsCallback callback) {
 			if (callback == null) {
 				return;
 			}
 
-			switch (callback.NotificationType) {
-				case ArchiHandler.NotificationCallback.ENotificationType.Trading:
-					Trading.CheckTrades();
-					break;
+			bool checkTrades = false;
+			foreach (var notification in callback.Notifications) {
+				switch (notification.NotificationType) {
+					case ArchiHandler.NotificationsCallback.Notification.ENotificationType.Trading:
+						checkTrades = true;
+						break;
+				}
+			}
+
+			if (checkTrades) {
+				Trading.CheckTrades();
 			}
 		}
 
@@ -1137,13 +1131,6 @@ namespace ArchiSteamFarm {
 			}
 
 			var purchaseResult = callback.PurchaseResult;
-			var items = callback.Items;
-			if (doanswer) {
-				SendMessage(SteamMasterID, "Status: " + purchaseResult + " | Items: " + string.Join("", items));
-			} else {
-				RedeemEvent(this, new RedeemEventArgs("Status: " + purchaseResult + " | Items: " + string.Join("", items)));
-			}
-
 			if (purchaseResult == ArchiHandler.PurchaseResponseCallback.EPurchaseResult.OK) {
 				// We will restart CF module to recalculate current status and decide about new optimal approach
 				await CardsFarmer.RestartFarming().ConfigureAwait(false);
