@@ -42,11 +42,11 @@ namespace ArchiSteamFarm {
 			if (!text.Contains(" ")) {
 				switch (text) {
 					case "exit":
-						Bot.ShutdownAllBots().Wait();
-						return "Done";
+						Bot.ShutdownAllBots();
+						return "Shutdown planned"; //return without waiting
 					case "restart":
-						Program.Restart().Wait();
-						return "Done";
+						Program.Restart();
+						return "Restart planned"; //return without waiting
 					case "status":
 						return Bot.GetStatus("all");
 				}
