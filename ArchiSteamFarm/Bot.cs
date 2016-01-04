@@ -31,6 +31,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
+using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 
@@ -40,9 +41,9 @@ namespace ArchiSteamFarm {
 		private const ulong ArchiSCFarmGroup = 103582791440160998;
 		private const ushort CallbackSleep = 500; // In miliseconds
 
-		private static readonly ConcurrentDictionary<string, Bot> Bots = new ConcurrentDictionary<string, Bot>();
 		private static readonly uint LoginID = MsgClientLogon.ObfuscationMask; // This must be the same for all ASF bots and all ASF processes
 
+		internal static readonly ConcurrentDictionary<string, Bot> Bots = new ConcurrentDictionary<string, Bot>();
 		internal static readonly HashSet<uint> GlobalBlacklist = new HashSet<uint> { 303700, 335590, 368020, 425280 };
 
 		private readonly string ConfigFile, LoginKeyFile, MobileAuthenticatorFile, SentryFile;
@@ -384,22 +385,25 @@ namespace ArchiSteamFarm {
 			SteamClient.Disconnect();
 		}
 
-		internal async Task<bool> Shutdown(string botName = null) {
+		internal async Task Shutdown() {
+			KeepRunning = false;
+			await Stop().ConfigureAwait(false);
 			Bot bot;
+			Bots.TryRemove(BotName, out bot);
+			Program.OnBotShutdown();
+		}
 
+		internal static async Task<bool> Shutdown(string botName) {
 			if (string.IsNullOrEmpty(botName)) {
-				bot = this;
-			} else {
-				if (!Bots.TryGetValue(botName, out bot)) {
-					return false;
-				}
+				return false;
 			}
 
-			bot.KeepRunning = false;
-			await bot.Stop().ConfigureAwait(false);
-			Bots.TryRemove(bot.BotName, out bot);
+			Bot bot;
+			if (!Bots.TryGetValue(botName, out bot)) {
+				return false;
+			}
 
-			Program.OnBotShutdown();
+			await bot.Shutdown().ConfigureAwait(false);
 			return true;
 		}
 
@@ -429,11 +433,11 @@ namespace ArchiSteamFarm {
 			}
 		}
 
-		internal static string GetStatus (string botName) {
+		internal static string ResponseStatus (string botName) {
 			Bot bot;
 			string result="";
 			if (string.IsNullOrEmpty(botName)) {
-				return "No bot name specified";
+				return null;
 			} else {
 				if (botName.Equals("all")) {
 					foreach (var curbot in Bots) {
@@ -459,27 +463,14 @@ namespace ArchiSteamFarm {
 			return result;
 		}
 
-		private void ResponseStatus(ulong steamID, string botName = null) {
-			if (steamID == 0) {
-				return;
-			}
-
+		internal static string Response2FA(string botName) {
 			if (string.IsNullOrEmpty(botName)) {
-				SendMessage(steamID,GetStatus(this.BotName));
-			} else {
-				SendMessage(steamID,GetStatus(botName));
+				return null;
 			}
-		}
 
-		internal static string Get2FA (string botName) {
 			Bot bot;
-
-			if (string.IsNullOrEmpty(botName)) {
-				return "Error";
-			} else {
-				if (!Bots.TryGetValue(botName, out bot)) {
-					return "Couldn't find any bot named " + botName + "!";
-				}
+			if (!Bots.TryGetValue(botName, out bot)) {
+				return "Couldn't find any bot named " + botName + "!";
 			}
 
 			if (bot.SteamGuardAccount == null) {
@@ -490,41 +481,14 @@ namespace ArchiSteamFarm {
 			return "2FA Token: " + bot.SteamGuardAccount.GenerateSteamGuardCode() + " (expires in " + timeLeft + " seconds)";
 		}
 
-		private void Response2FA(ulong steamID, string botName = null) {
-			if (steamID == 0) {
-				return;
+		internal static string Response2FAOff(string botName) {
+			if (string.IsNullOrEmpty(botName)) {
+				return null;
 			}
 
 			Bot bot;
-
-			if (string.IsNullOrEmpty(botName)) {
-				bot = this;
-			} else {
-				if (!Bots.TryGetValue(botName, out bot)) {
-					SendMessage(steamID, "Couldn't find any bot named " + botName + "!");
-					return;
-				}
-			}
-
-			if (bot.SteamGuardAccount == null) {
-				SendMessage(steamID, "That bot doesn't have ASF 2FA enabled!");
-				return;
-			}
-
-			long timeLeft = 30 - TimeAligner.GetSteamTime() % 30;
-			SendMessage(steamID, "2FA Token: " + bot.SteamGuardAccount.GenerateSteamGuardCode() + " (expires in " + timeLeft + " seconds)");
-		}
-
-		internal static string Set2FAOff (string botName) {
-
-			Bot bot;
-
-			if (string.IsNullOrEmpty(botName)) {
-				return "Error";
-			} else {
-				if (!Bots.TryGetValue(botName, out bot)) {
-					return "Couldn't find any bot named " + botName + "!";
-				}
+			if (!Bots.TryGetValue(botName, out bot)) {
+				return "Couldn't find any bot named " + botName + "!";
 			}
 
 			if (bot.SteamGuardAccount == null) {
@@ -534,41 +498,45 @@ namespace ArchiSteamFarm {
 			if (bot.DelinkMobileAuthenticator()) {
 				return "Done! Bot is no longer using ASF 2FA";
 			} else {
-				return "Something went wrong!";
+				return "Something went wrong during delinking mobile authenticator!";
 			}
 		}
 
-		private void Response2FAOff(ulong steamID, string botName = null) {
-			if (steamID == 0) {
-				return;
+		internal static async Task<string> ResponseRedeem(string botName, string key) {
+			if (string.IsNullOrEmpty(botName) || string.IsNullOrEmpty(key)) {
+				return null;
 			}
 
 			Bot bot;
-
-			if (string.IsNullOrEmpty(botName)) {
-				bot = this;
-			} else {
-				if (!Bots.TryGetValue(botName, out bot)) {
-					SendMessage(steamID, "Couldn't find any bot named " + botName + "!");
-					return;
-				}
+			if (!Bots.TryGetValue(botName, out bot)) {
+				return "Couldn't find any bot named " + botName + "!";
+			}
+			ArchiHandler.PurchaseResponseCallback result;
+			try {
+				result = await bot.ArchiHandler.RedeemKey(key);
+			} catch (Exception e) {
+				Logging.LogGenericException(botName, e);
+				return null;
 			}
 
-			if (bot.SteamGuardAccount == null) {
-				SendMessage(steamID, "That bot doesn't have ASF 2FA enabled!");
-				return;
+			if (result == null) {
+				return null;
 			}
 
-			if (bot.DelinkMobileAuthenticator()) {
-				SendMessage(steamID, "Done! Bot is no longer using ASF 2FA");
-			} else {
-				SendMessage(steamID, "Something went wrong!");
-			}
+			var purchaseResult = result.PurchaseResult;
+			var items = result.Items;
+
+			return botName+" status: "+purchaseResult + " | Items: " + string.Join("", items);
 		}
 
-		internal static string StartBot(string botName) {
+
+		internal static string ResponseStart(string botName) {
+			if (string.IsNullOrEmpty(botName)) {
+				return null;
+			}
+
 			if (Bots.ContainsKey(botName)) {
-				return  "That bot instance is already running!";
+				return "That bot instance is already running!";
 			}
 
 			new Bot(botName);
@@ -577,187 +545,109 @@ namespace ArchiSteamFarm {
 			} else {
 				return "That bot instance failed to start, make sure that XML config exists and bot is active!";
 			}
-
-		}
-		internal static async Task<string> RedeemKey (string key, string botName) {
-			Bot bot;
-
-	 		if (!Bots.TryGetValue(botName, out bot)) { 
-				return  "That bot instance is inactive!";
-			}
-			
-			ArchiHandler.PurchaseResponseCallback result;
-			try {
-				result = await bot.ArchiHandler.RedeemKey(key);
-			} catch (Exception e) {
-				Logging.LogGenericException(bot.BotName, e);
-				return "Error";
-			}
-
-			if (result == null) {
-				return "Error";
-			}
-
-			var purchaseResult = result.PurchaseResult;
-			var items = result.Items;
-
-			return purchaseResult + " | Items: " + string.Join("", items);
 		}
 
-		private async Task ResponseRedeem(ulong steamID, string key, string botName = null) {
-			if (steamID == 0 || string.IsNullOrEmpty(key)) {
-				return;
-			}
-
+		internal static async Task<string> ResponseStop(string botName) {
 			if (string.IsNullOrEmpty(botName)) {
-				SendMessage(steamID, "Status: " + await RedeemKey(key, this.BotName).ConfigureAwait(false));
-			} else {
-				SendMessage(steamID, botName+" answer: " + await RedeemKey(key, botName).ConfigureAwait(false));
-			}
-		}
-
-		private void ResponseStart(ulong steamID, string botName) {
-			if (steamID == 0 || string.IsNullOrEmpty(botName)) {
-				return;
+				return null;
 			}
 
-			if (Bots.ContainsKey(botName)) {
-				SendMessage(steamID, "That bot instance is already running!");
-				return;
-			}
-
-			new Bot(botName);
-			if (Bots.ContainsKey(botName)) {
-				SendMessage(steamID, "Done!");
-			} else {
-				SendMessage(steamID, "That bot instance failed to start, make sure that XML config exists and bot is active!");
-			}
-		}
-		internal static string StopBot(string botName) {
-			if (string.IsNullOrEmpty(botName)) {
-				return "Error";
-			}
 			Bot bot;
-			if (!Bots.TryGetValue(botName, out bot)) { 
+			if (!Bots.TryGetValue(botName, out bot)) {
 				return "That bot instance is already inactive!";
 			}
 
-			Task<bool> task =  bot.Shutdown();
-			task.Wait();
-			if (task.Result) {
+			if (await Shutdown(botName).ConfigureAwait(false)) {
 				return "Done!";
 			} else {
 				return "That bot instance failed to shutdown!";
 			}
-
 		}
 
-		private async Task ResponseStop(ulong steamID, string botName) {
-			if (steamID == 0 || string.IsNullOrEmpty(botName)) {
-				return;
-			}
-
-			if (!Bots.ContainsKey(botName)) {
-				SendMessage(steamID, "That bot instance is already inactive!");
-				return;
-			}
-
-			if (await Shutdown(botName).ConfigureAwait(false)) {
-				SendMessage(steamID, "Done!");
-			} else {
-				SendMessage(steamID, "That bot instance failed to shutdown!");
-			}
-		}
-
-		private async Task ResponseMultiActivate(ulong steamID, string[] gamekeys) {
+		private async Task<string> ResponseMultiActivate(string[] gamekeys) {
 			string results="";
 			int i = 0;
 			foreach (var curbot in Bots) {
-				results+=curbot.Key+ " answer: " + await RedeemKey(gamekeys[i].Trim(),curbot.Key).ConfigureAwait(false)+"\n";
+				results+=await ResponseRedeem(curbot.Key,gamekeys[i].Trim()).ConfigureAwait(false)+"\n";
 				i++;
 				if (gamekeys.Length <= i)
 					break;
 			}
 
-			SendMessage(steamID, results);
+			return results;
 
 		}
 
-		private async Task HandleMessage(ulong steamID, string message) {
-			if (IsValidCdKey(message)) {
-				await ResponseRedeem(steamID, message).ConfigureAwait(false);
-				return;
+		internal async Task<string> HandleMessage(string message) {
+			if (string.IsNullOrEmpty(message)) {
+				return null;
 			}
 			if (message.Contains("\n")) {
 				string[] args = message.Split('\n');
 				if (args[0].Contains("-")) {
-					await ResponseMultiActivate(steamID, args);
+					return await ResponseMultiActivate(args);
 				}
 			}      
 
-			if (!message.StartsWith("!")) {
-				return;
+			if (IsValidCdKey(message)) {
+				return await ResponseRedeem(BotName, message).ConfigureAwait(false);
 			}
 
 			if (!message.Contains(" ")) {
 				switch (message) {
 					case "!2fa":
-						Response2FA(steamID);
-						break;
+						return Response2FA(BotName);
 					case "!2faoff":
-						Response2FAOff(steamID);
-						break;
+						return Response2FAOff(BotName);
 					case "!exit":
 						await ShutdownAllBots().ConfigureAwait(false);
-						break;
+						return "Done";
 					case "!restart":
 						await Program.Restart().ConfigureAwait(false);
-						break;
+						return "Done";
 					case "!status":
-						ResponseStatus(steamID);
-						break;
+						return ResponseStatus(BotName);
 					case "!stop":
-						await Shutdown().ConfigureAwait(false);
-						break;
+						return await ResponseStop(BotName).ConfigureAwait(false);
+					default:
+						return "Unrecognized command: " + message;
 				}
 			} else {
 				string[] args = message.Split(' ');
 				switch (args[0]) {
 					case "!2fa":
-						Response2FA(steamID, args[1]);
-						break;
+						return Response2FA(args[1]);
 					case "!2faoff":
-						Response2FAOff(steamID, args[1]);
-						break;
-					case "!farm": {
-						Bot botToFarm;
-						if (!Bots.TryGetValue(args[1], out botToFarm)) {
-							SendMessage(steamID, "Bot is inactive and cant farm");
-							break;
-						}
-						SendMessage(steamID, "Please wait...");
-						await botToFarm.CardsFarmer.StartFarming().ConfigureAwait(false);
-						SendMessage(steamID, "Done!");
-						break;
-						}
+						return Response2FAOff(args[1]);
 					case "!redeem":
-						if (args.Length == 2) {
-							await ResponseRedeem(steamID, args[1]).ConfigureAwait(false);
-						} else if (args.Length == 3) {
-							await ResponseRedeem(steamID, args[2], args[1]).ConfigureAwait(false);
+						string botName;
+						string key;
+						if (args.Length > 2) {
+							botName = args[1];
+							key = args[2];
+						} else {
+							botName = BotName;
+							key = args[1];
 						}
-						break;
+						return await ResponseRedeem(botName, key).ConfigureAwait(false);
 					case "!start":
-						ResponseStart(steamID, args[1]);
-						break;
+						return ResponseStart(args[1]);
 					case "!stop":
-						await ResponseStop(steamID, args[1]).ConfigureAwait(false);
-						break;
+						return await ResponseStop(args[1]).ConfigureAwait(false);
 					case "!status":
-						ResponseStatus(steamID, args[1]);
-						break;
+						return ResponseStatus(args[1]);
+					default:
+						return "Unrecognized command: " + args[0];
 				}
 			}
+		}
+
+		private async Task HandleMessage(ulong steamID, string message) {
+			if (steamID == 0 || string.IsNullOrEmpty(message)) {
+				return;
+			}
+
+			SendMessage(steamID, await HandleMessage(message).ConfigureAwait(false));
 		}
 
 		private void OnConnected(SteamClient.ConnectedCallback callback) {

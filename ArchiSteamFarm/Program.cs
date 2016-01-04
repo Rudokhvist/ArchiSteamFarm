@@ -31,54 +31,8 @@ using System.Threading.Tasks;
 using System.ServiceModel;
 
 namespace ArchiSteamFarm {
-	[ServiceContract]
-	public interface IWCFconnect {
-		[OperationContract]
-		string SendText(string text);
-	}
-
-	public class WCFconnect : IWCFconnect {
-		public string SendText(string text) {
-			if (!text.Contains(" ")) {
-				switch (text) {
-					case "exit":
-						Bot.ShutdownAllBots();
-						return "Shutdown planned"; //return without waiting
-					case "restart":
-						Program.Restart();
-						return "Restart planned"; //return without waiting
-					case "status":
-						return Bot.GetStatus("all");
-				}
-			} else {
-				string[] args = text.Split(' ');
-				switch (args[0]) {
-					case "2fa":
-						return Bot.Get2FA(args[1]);
-					case "2faoff":
-						return Bot.Set2FAOff(args[1]);
-					case "redeem":
-						if (args.Length<3) {
-							return "Error";
-						} else {
-							Task<string> task=Bot.RedeemKey(args[2],args[1]);
-							task.Wait();
-							return task.Result;
-						}
-					case "start":
-						return Bot.StartBot(args[1]);
-					case "stop":
-						return Bot.StopBot(args[1]);
-					case "status":
-						return Bot.GetStatus(args[1]);
-				}
-			}
-			return "Error";
-		}
-	}
-
 	internal static class Program {
-		internal enum EUserInputType {
+		internal enum EUserInputType : byte {
 			Login,
 			Password,
 			PhoneNumber,
@@ -87,6 +41,12 @@ namespace ArchiSteamFarm {
 			SteamParentalPIN,
 			RevocationCode,
 			TwoFactorAuthentication,
+		}
+
+		internal enum EMode : byte {
+			Normal, // Standard most common usage
+			Client, // WCF client only
+			Server // Normal + WCF server
 		}
 
 		private const string LatestGithubReleaseURL = "https://api.github.com/repos/JustArchi/ArchiSteamFarm/releases/latest";
@@ -99,10 +59,11 @@ namespace ArchiSteamFarm {
 		private static readonly Assembly Assembly = Assembly.GetExecutingAssembly();
 		private static readonly string ExecutableFile = Assembly.Location;
 		private static readonly string ExecutableDirectory = Path.GetDirectoryName(ExecutableFile);
+		private static readonly WCF WCF = new WCF();
 
 		internal static readonly string Version = Assembly.GetName().Version.ToString();
 
-		private static ServiceHost host = null;
+		private static EMode Mode;
 
 		internal static bool ConsoleIsBusy { get; private set; } = false;
 
@@ -140,7 +101,7 @@ namespace ArchiSteamFarm {
 
 		internal static async Task Restart() {
 			await Bot.ShutdownAllBots().ConfigureAwait(false);
-			System.Diagnostics.Process.Start(ExecutableFile);
+			System.Diagnostics.Process.Start(ExecutableFile, string.Join(" ", Environment.GetCommandLineArgs()));
 			Environment.Exit(0);
 		}
 
@@ -190,11 +151,9 @@ namespace ArchiSteamFarm {
 			return result.Trim(); // Get rid of all whitespace characters
 		}
 
-		internal static async void OnBotShutdown() {
-			if (Bot.GetRunningBotsCount() == 0) {
+		internal static void OnBotShutdown() {
+			if (Mode != EMode.Server && Bot.GetRunningBotsCount() == 0) {
 				Logging.LogGenericInfo("Main", "No bots are running, exiting");
-				host.Close();
-				await Utilities.SleepAsync(5000).ConfigureAwait(false); // This might be the only message user gets, consider giving him some time
 				ShutdownResetEvent.Set();
 			
 			}
@@ -205,76 +164,107 @@ namespace ArchiSteamFarm {
 			WebBrowser.Init();
 		}
 
-		private static void Main(string[] args) {
-			if (args.Length > 0) {
-				//client, send the message to server				
-				IWCFconnect con = null;
-				try {
-					string message=args[0];
-					for (int j=1;j<args.Length;j++) {
-						message+=" "+args[j];
-					}
-					Uri tcpUri = new Uri(string.Format("http://{0}:{1}/ASFService", "localhost", "1050"));
-					EndpointAddress address = new EndpointAddress(tcpUri, EndpointIdentity.CreateSpnIdentity("Server"));
-					ChannelFactory<IWCFconnect> factory = new ChannelFactory<IWCFconnect>(new BasicHttpBinding(), address);
-					con = factory.CreateChannel();
-					Console.WriteLine(con.SendText(message));
-				}
-				catch (Exception e) {	//not the best idea really
-					Console.WriteLine("ERROR: {0}", e.Message);
-				}
-			} else {
-				//server, main routine
-				try {
-					host = new ServiceHost(typeof(WCFconnect), new Uri("http://localhost:1050/ASFService"));
-					host.AddServiceEndpoint(typeof(IWCFconnect), new BasicHttpBinding(), "");
-					host.Open();
-				} catch (Exception e) {
-					Logging.LogGenericInfo("Main", "Error: "+e.Message);
-				}
-
-				Directory.SetCurrentDirectory(ExecutableDirectory);
-				InitServices();
-
-				// Allow loading configs from source tree if it's a debug build
-				if (Debugging.IsDebugBuild) {
-
-					// Common structure is bin/(x64/)Debug/ArchiSteamFarm.exe, so we allow up to 4 directories up
-					for (var i = 0; i < 4; i++) {
-						Directory.SetCurrentDirectory("..");
-						if (Directory.Exists(ConfigDirectory)) {
-							break;
+		private static void ParseArgs(string[] args) {
+			foreach (string arg in args) {
+				switch (arg) {
+					case "--client":
+						Mode = EMode.Client;
+						Logging.LogToFile = false;
+						break;
+					case "--log":
+						Logging.LogToFile = true;
+						break;
+					case "--no-log":
+						Logging.LogToFile = false;
+						break;
+					case "--server":
+						Mode = EMode.Server;
+						WCF.StartServer();
+						break;
+					default:
+						if (arg.StartsWith("--")) {
+							Logging.LogGenericWarning("Main", "Unrecognized parameter: " + arg);
+							continue;
 						}
-					}
 
-					// If config directory doesn't exist after our adjustment, abort all of that
-					if (!Directory.Exists(ConfigDirectory)) {
-						Directory.SetCurrentDirectory(ExecutableDirectory);
-					}
+						if (Mode != EMode.Client) {
+							Logging.LogGenericWarning("Main", "Ignoring command because --client wasn't specified: " + arg);
+							continue;
+						}
+
+						Logging.LogGenericNotice("WCF", "Command sent: " + arg);
+
+						// We intentionally execute this async block synchronously
+						Logging.LogGenericNotice("WCF", "Response received: " + WCF.SendCommand(arg));
+						/*
+						Task.Run(async () => {
+							Logging.LogGenericNotice("WCF", "Response received: " + await WCF.SendCommand(arg).ConfigureAwait(false));
+						}).Wait();
+						*/
+						break;
 				}
-
-				Logging.LogGenericInfo("Main", "Archi's Steam Farm, version " + Version);
-				Task.Run(async () => await CheckForUpdate().ConfigureAwait(false)).Wait();
-
-				if (!Directory.Exists(ConfigDirectory)) {
-					Logging.LogGenericError("Main", "Config directory doesn't exist!");
-					Thread.Sleep(5000);
-					Task.Run(async () => await Exit(1).ConfigureAwait(false)).Wait();
-				}
-
-				foreach (var configFile in Directory.EnumerateFiles(ConfigDirectory, "*.xml")) {
-					string botName = Path.GetFileNameWithoutExtension(configFile);
-					Bot bot = new Bot(botName);
-					if (!bot.Enabled) {
-						Logging.LogGenericInfo(botName, "Not starting this instance because it's disabled in config file");
-					}
-				}
-
-				// Check if we got any bots running
-				OnBotShutdown();
-
-				ShutdownResetEvent.WaitOne();
 			}
+		}
+
+		private static void Main(string[] args) {
+			Logging.LogGenericInfo("Main", "Archi's Steam Farm, version " + Version);
+			Directory.SetCurrentDirectory(ExecutableDirectory);
+			InitServices();
+
+			// Allow loading configs from source tree if it's a debug build
+			if (Debugging.IsDebugBuild) {
+
+				// Common structure is bin/(x64/)Debug/ArchiSteamFarm.exe, so we allow up to 4 directories up
+				for (var i = 0; i < 4; i++) {
+					Directory.SetCurrentDirectory("..");
+					if (Directory.Exists(ConfigDirectory)) {
+						break;
+					}
+				}
+
+				// If config directory doesn't exist after our adjustment, abort all of that
+				if (!Directory.Exists(ConfigDirectory)) {
+					Directory.SetCurrentDirectory(ExecutableDirectory);
+				}
+			}
+
+			// By default we're operating on normal mode
+			Mode = EMode.Normal;
+			Logging.LogToFile = true;
+
+			// But that can be overriden by arguments
+			ParseArgs(args);
+
+			// If we ran ASF as a client, we're done by now
+			if (Mode == EMode.Client) {
+				return;
+			}
+
+			Task.Run(async () => await CheckForUpdate().ConfigureAwait(false)).Wait();
+
+			if (!Directory.Exists(ConfigDirectory)) {
+				Logging.LogGenericError("Main", "Config directory doesn't exist!");
+				Thread.Sleep(5000);
+				Task.Run(async () => await Exit(1).ConfigureAwait(false)).Wait();
+			}
+
+			foreach (var configFile in Directory.EnumerateFiles(ConfigDirectory, "*.xml")) {
+				string botName = Path.GetFileNameWithoutExtension(configFile);
+				Bot bot = new Bot(botName);
+				if (!bot.Enabled) {
+					Logging.LogGenericInfo(botName, "Not starting this instance because it's disabled in config file");
+				}
+			}
+
+			// Check if we got any bots running
+			OnBotShutdown();
+
+			ShutdownResetEvent.WaitOne();
+
+			// We got a signal to shutdown
+			WCF.StopServer();
+
+			Thread.Sleep(5000); // We're shuting down, consider giving user some time to read the message
 		}
 	}
 }
