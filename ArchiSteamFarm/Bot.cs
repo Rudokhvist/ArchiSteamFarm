@@ -36,7 +36,6 @@ using System.Xml;
 using System.Text;
 
 namespace ArchiSteamFarm {
-
 	internal sealed class Bot {
 		private const ulong ArchiSCFarmGroup = 103582791440160998;
 		private const ushort CallbackSleep = 500; // In miliseconds
@@ -82,11 +81,7 @@ namespace ArchiSteamFarm {
 		internal HashSet<uint> Blacklist { get; private set; } = new HashSet<uint>();
 		internal bool Statistics { get; private set; } = true;
 
-		internal ConcurrentDictionary<string, Bot> GetBots (){
-			 return Bots;
-		}
-
-		internal static bool IsValidCdKey(string key) {
+		private static bool IsValidCdKey(string key) {
 			if (string.IsNullOrEmpty(key)) {
 				return false;
 			}
@@ -523,6 +518,7 @@ namespace ArchiSteamFarm {
 			if (!Bots.TryGetValue(botName, out bot)) {
 				return "Couldn't find any bot named " + botName + "!";
 			}
+
 			ArchiHandler.PurchaseResponseCallback result;
 			try {
 				result = await bot.ArchiHandler.RedeemKey(key);
@@ -540,7 +536,6 @@ namespace ArchiSteamFarm {
 
 			return botName+" status: "+purchaseResult + " | Items: " + string.Join("", items);
 		}
-
 
 		internal static string ResponseStart(string botName) {
 			if (string.IsNullOrEmpty(botName)) {

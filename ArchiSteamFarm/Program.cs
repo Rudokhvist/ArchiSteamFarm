@@ -28,7 +28,6 @@ using System.IO;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-using System.ServiceModel;
 
 namespace ArchiSteamFarm {
 	internal static class Program {
@@ -155,7 +154,6 @@ namespace ArchiSteamFarm {
 			if (Bot.GetRunningBotsCount() == 0) {
 				Logging.LogGenericInfo("Main", "No bots are running, exiting");
 				ShutdownResetEvent.Set();
-			
 			}
 		}
 
