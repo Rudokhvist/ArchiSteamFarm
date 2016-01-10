@@ -31,7 +31,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
-using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 
@@ -104,6 +103,14 @@ namespace ArchiSteamFarm {
 			return true;
 		}
 
+		internal static string GetAnyBotName() {
+			foreach (string botName in Bots.Keys) {
+				return botName;
+			}
+
+			return null;
+		}
+
 		internal static int GetRunningBotsCount() {
 			return Bots.Count;
 		}
@@ -173,6 +180,9 @@ namespace ArchiSteamFarm {
 			ArchiWebHandler = new ArchiWebHandler(this, SteamApiKey);
 			CardsFarmer = new CardsFarmer(this);
 			Trading = new Trading(this);
+
+			// Before attempting to connect, initialize our list of CMs
+			SteamDirectory.Initialize().Wait();
 
 			// Start
 			var handleCallbacks = Task.Run(() => HandleCallbacks());
