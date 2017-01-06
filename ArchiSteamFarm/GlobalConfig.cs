@@ -38,7 +38,7 @@ namespace ArchiSteamFarm {
 		internal const ushort DefaultWCFPort = 1242;
 
 		private const byte DefaultFarmingDelay = 15;
-		private const byte DefaultMaxFarmingTime = 10;
+		private const ulong DefaultMaxFarmingTime = 36000;
 		private const ProtocolType DefaultSteamProtocol = ProtocolType.Tcp;
 
 		// This is hardcoded blacklist which should not be possible to change
@@ -78,7 +78,7 @@ namespace ArchiSteamFarm {
 		internal readonly byte LoginLimiterDelay = 10;
 
 		[JsonProperty(Required = Required.DisallowNull)]
-		internal readonly byte MaxFarmingTime = DefaultMaxFarmingTime;
+		internal readonly ulong MaxFarmingTime = DefaultMaxFarmingTime;
 
 		[JsonProperty(Required = Required.DisallowNull)]
 		internal readonly byte MaxTradeHoldDuration = 15;

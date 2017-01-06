@@ -505,7 +505,7 @@ namespace ArchiSteamFarm {
 			}
 
 			Bot.ArchiHandler.PlayGame(game.AppID, Bot.BotConfig.CustomGamePlayedWhileFarming);
-			DateTime endFarmingDate = DateTime.Now.AddHours(Program.GlobalConfig.MaxFarmingTime);
+			DateTime endFarmingDate = DateTime.Now.AddSeconds(Program.GlobalConfig.MaxFarmingTime);
 
 			bool success = true;
 			bool? keepFarming = await ShouldFarm(game).ConfigureAwait(false);
