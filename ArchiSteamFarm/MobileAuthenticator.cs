@@ -154,8 +154,8 @@ namespace ArchiSteamFarm {
 					return null;
 				}
 
-				uint id;
-				if (!uint.TryParse(idString, out id) || (id == 0)) {
+				ulong id;
+				if (!ulong.TryParse(idString, out id) || (id == 0)) {
 					Bot.ArchiLogger.LogNullError(nameof(id));
 					return null;
 				}
@@ -379,11 +379,11 @@ namespace ArchiSteamFarm {
 		}
 
 		internal sealed class Confirmation {
-			internal readonly uint ID;
+			internal readonly ulong ID;
 			internal readonly ulong Key;
 			internal readonly Steam.ConfirmationDetails.EType Type;
 
-			internal Confirmation(uint id, ulong key, Steam.ConfirmationDetails.EType type) {
+			internal Confirmation(ulong id, ulong key, Steam.ConfirmationDetails.EType type) {
 				if ((id == 0) || (key == 0) || (type == Steam.ConfirmationDetails.EType.Unknown)) {
 					throw new ArgumentNullException(nameof(id) + " || " + nameof(key) + " || " + nameof(type));
 				}
