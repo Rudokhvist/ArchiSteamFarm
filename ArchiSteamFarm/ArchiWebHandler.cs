@@ -53,7 +53,7 @@ namespace ArchiSteamFarm {
 
 		// We could (and should) use HTTPS for SteamStore, but that would make certain POST requests failing
 		private const string SteamStoreHost = "store.steampowered.com";
-		private const string SteamStoreURL = "http://" + SteamStoreHost;
+		private const string SteamStoreURL = "https://" + SteamStoreHost;
 
 		private static int Timeout = GlobalConfig.DefaultConnectionTimeout * 1000; // This must be int type
 
