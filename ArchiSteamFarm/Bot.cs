@@ -914,7 +914,15 @@ namespace ArchiSteamFarm {
 
 			if (!string.IsNullOrEmpty(Program.GlobalConfig.CommandPrefix)) {
 				if (!message.StartsWith(Program.GlobalConfig.CommandPrefix, StringComparison.Ordinal)) {
-					return null;
+                    if (!IsValidCdKey(message.Split('\n')[0]))
+                    {
+                        return message.Split('\n')[0];
+                        //return null;
+                    }
+                    else
+                    {
+                        message = "!r " + BotName + " " + message;
+                    }
 				}
 
 				message = message.Substring(Program.GlobalConfig.CommandPrefix.Length);
