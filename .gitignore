@@ -17,6 +17,8 @@ ArchiSteamFarm/debug
 # Ignore out folders for publishing
 out
 ArchiSteamFarm/out
+ArchiSteamFarm/out-generic
+ArchiSteamFarm/out-generic-netf
 
 # Ignore crowdin CLI secret
 tools/crowdin-cli/crowdin_identity.yml
