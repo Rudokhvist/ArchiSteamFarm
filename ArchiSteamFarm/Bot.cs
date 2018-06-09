@@ -914,10 +914,9 @@ namespace ArchiSteamFarm {
 
 			if (!string.IsNullOrEmpty(Program.GlobalConfig.CommandPrefix)) {
 				if (!message.StartsWith(Program.GlobalConfig.CommandPrefix, StringComparison.Ordinal)) {
-                    if (!IsValidCdKey(message.Split('\n')[0]))
+                    if (!IsValidCdKey(message.Split(new [] { '\n' })[0]))
                     {
-                        return message.Split('\n')[0];
-                        //return null;
+                        return null;
                     }
                     else
                     {
