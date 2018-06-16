@@ -222,6 +222,7 @@ namespace ArchiSteamFarm {
 			CallbackManager.Subscribe<ArchiHandler.PlayingSessionStateCallback>(OnPlayingSessionState);
 			CallbackManager.Subscribe<ArchiHandler.SharedLibraryLockStatusCallback>(OnSharedLibraryLockStatus);
 			CallbackManager.Subscribe<ArchiHandler.UserNotificationsCallback>(OnUserNotifications);
+			CallbackManager.Subscribe<ArchiHandler.VanityURLChangedCallback>(OnVanityURLChangedCallback);
 
 			ArchiWebHandler = new ArchiWebHandler(this);
 			CardsFarmer = new CardsFarmer(this);
@@ -1631,10 +1632,12 @@ namespace ArchiSteamFarm {
 			}
 
 			await GiftsSemaphore.WaitAsync().ConfigureAwait(false);
-			Utilities.InBackground(async () => {
-				await Task.Delay(Program.GlobalConfig.GiftsLimiterDelay * 1000).ConfigureAwait(false);
-				GiftsSemaphore.Release();
-			});
+			Utilities.InBackground(
+				async () => {
+					await Task.Delay(Program.GlobalConfig.GiftsLimiterDelay * 1000).ConfigureAwait(false);
+					GiftsSemaphore.Release();
+				}
+			);
 		}
 
 		private static async Task LimitLoginRequestsAsync() {
@@ -1643,10 +1646,12 @@ namespace ArchiSteamFarm {
 			}
 
 			await LoginSemaphore.WaitAsync().ConfigureAwait(false);
-			Utilities.InBackground(async () => {
-				await Task.Delay(Program.GlobalConfig.LoginLimiterDelay * 1000).ConfigureAwait(false);
-				LoginSemaphore.Release();
-			});
+			Utilities.InBackground(
+				async () => {
+					await Task.Delay(Program.GlobalConfig.LoginLimiterDelay * 1000).ConfigureAwait(false);
+					LoginSemaphore.Release();
+				}
+			);
 		}
 
 		private void OnChatInvite(SteamFriends.ChatInviteCallback callback) {
@@ -1760,17 +1765,19 @@ namespace ArchiSteamFarm {
 
 			InitConnectionFailureTimer();
 
-			SteamUser.LogOn(new SteamUser.LogOnDetails {
-				AuthCode = AuthCode,
-				CellID = Program.GlobalDatabase.CellID,
-				LoginID = LoginID,
-				LoginKey = loginKey,
-				Password = password,
-				SentryFileHash = sentryFileHash,
-				ShouldRememberPassword = BotConfig.UseLoginKeys,
-				TwoFactorCode = TwoFactorCode,
-				Username = username
-			});
+			SteamUser.LogOn(
+				new SteamUser.LogOnDetails {
+					AuthCode = AuthCode,
+					CellID = Program.GlobalDatabase.CellID,
+					LoginID = LoginID,
+					LoginKey = loginKey,
+					Password = password,
+					SentryFileHash = sentryFileHash,
+					ShouldRememberPassword = BotConfig.UseLoginKeys,
+					TwoFactorCode = TwoFactorCode,
+					Username = username
+				}
+			);
 		}
 
 		private async void OnDisconnected(SteamClient.DisconnectedCallback callback) {
@@ -1852,7 +1859,7 @@ namespace ArchiSteamFarm {
 			// We should never ever get friend message in the first place when we're using FarmOffline
 			// But due to Valve's fuckups, everything is possible, and this case must be checked too
 			// Additionally, we might even make use of that if user didn't enable HandleOfflineMessages
-			if (!IsAllowedToExecuteCommands(callback.Sender) || (BotConfig.FarmOffline && BotConfig.HandleOfflineMessages)) {
+			if (!IsAllowedToExecuteCommands(callback.Sender) || ((BotConfig.OnlineStatus == EPersonaState.Offline) && BotConfig.HandleOfflineMessages)) {
 				return;
 			}
 
@@ -2129,7 +2136,9 @@ namespace ArchiSteamFarm {
 						SetUserInput(ASF.EUserInputType.SteamParentalPIN, steamParentalPIN);
 					}
 
-					if (!await ArchiWebHandler.Init(callback.ClientSteamID, SteamClient.Universe, callback.WebAPIUserNonce, BotConfig.SteamParentalPIN, callback.VanityURL).ConfigureAwait(false)) {
+					ArchiWebHandler.OnVanityURLChanged(callback.VanityURL);
+
+					if (!await ArchiWebHandler.Init(callback.ClientSteamID, SteamClient.Universe, callback.WebAPIUserNonce, BotConfig.SteamParentalPIN).ConfigureAwait(false)) {
 						if (!await RefreshSession().ConfigureAwait(false)) {
 							break;
 						}
@@ -2154,14 +2163,16 @@ namespace ArchiSteamFarm {
 					}
 
 					if (BotConfig.SteamMasterClanID != 0) {
-						Utilities.InBackground(async () => {
-							await ArchiWebHandler.JoinGroup(BotConfig.SteamMasterClanID).ConfigureAwait(false);
-							JoinMasterChat();
-						});
+						Utilities.InBackground(
+							async () => {
+								await ArchiWebHandler.JoinGroup(BotConfig.SteamMasterClanID).ConfigureAwait(false);
+								JoinMasterChat();
+							}
+						);
 					}
 
-					if (!BotConfig.FarmOffline) {
-						SteamFriends.SetPersonaState(EPersonaState.Online);
+					if (BotConfig.OnlineStatus != EPersonaState.Offline) {
+						SteamFriends.SetPersonaState(BotConfig.OnlineStatus);
 					}
 
 					break;
@@ -2244,17 +2255,19 @@ namespace ArchiSteamFarm {
 			}
 
 			// Inform the steam servers that we're accepting this sentry file
-			SteamUser.SendMachineAuthResponse(new SteamUser.MachineAuthDetails {
-				JobID = callback.JobID,
-				FileName = callback.FileName,
-				BytesWritten = callback.BytesToWrite,
-				FileSize = fileSize,
-				Offset = callback.Offset,
-				Result = EResult.OK,
-				LastError = 0,
-				OneTimePassword = callback.OneTimePassword,
-				SentryFileHash = sentryHash
-			});
+			SteamUser.SendMachineAuthResponse(
+				new SteamUser.MachineAuthDetails {
+					JobID = callback.JobID,
+					FileName = callback.FileName,
+					BytesWritten = callback.BytesToWrite,
+					FileSize = fileSize,
+					Offset = callback.Offset,
+					Result = EResult.OK,
+					LastError = 0,
+					OneTimePassword = callback.OneTimePassword,
+					SentryFileHash = sentryHash
+				}
+			);
 		}
 
 		private void OnOfflineMessage(ArchiHandler.OfflineMessageCallback callback) {
@@ -2378,6 +2391,15 @@ namespace ArchiSteamFarm {
 						break;
 				}
 			}
+		}
+
+		private void OnVanityURLChangedCallback(ArchiHandler.VanityURLChangedCallback callback) {
+			if (callback == null) {
+				ArchiLogger.LogNullError(nameof(callback));
+				return;
+			}
+
+			ArchiWebHandler.OnVanityURLChanged(callback.VanityURL);
 		}
 
 		[SuppressMessage("ReSharper", "FunctionComplexityOverflow")]
@@ -3074,10 +3096,12 @@ namespace ArchiSteamFarm {
 			}
 
 			// Schedule the task after some time so user can receive response
-			Utilities.InBackground(async () => {
-				await Task.Delay(1000).ConfigureAwait(false);
-				await Program.Exit().ConfigureAwait(false);
-			});
+			Utilities.InBackground(
+				async () => {
+					await Task.Delay(1000).ConfigureAwait(false);
+					await Program.Exit().ConfigureAwait(false);
+				}
+			);
 
 			return FormatStaticResponse(Strings.Done);
 		}
@@ -3546,10 +3570,12 @@ namespace ArchiSteamFarm {
 			}
 
 			// Schedule the task after some time so user can receive response
-			Utilities.InBackground(async () => {
-				await Task.Delay(1000).ConfigureAwait(false);
-				SteamFriends.LeaveChat(chatID);
-			});
+			Utilities.InBackground(
+				async () => {
+					await Task.Delay(1000).ConfigureAwait(false);
+					SteamFriends.LeaveChat(chatID);
+				}
+			);
 
 			return FormatBotResponse(Strings.Done);
 		}
@@ -4544,10 +4570,12 @@ namespace ArchiSteamFarm {
 			}
 
 			// Schedule the task after some time so user can receive response
-			Utilities.InBackground(async () => {
-				await Task.Delay(1000).ConfigureAwait(false);
-				await Program.Restart().ConfigureAwait(false);
-			});
+			Utilities.InBackground(
+				async () => {
+					await Task.Delay(1000).ConfigureAwait(false);
+					await Program.Restart().ConfigureAwait(false);
+				}
+			);
 
 			return FormatStaticResponse(Strings.Done);
 		}
