@@ -111,8 +111,8 @@ namespace ArchiSteamFarm {
 
 			// Extra entry for sessionID
 			Dictionary<string, string> data = new Dictionary<string, string>(3) {
-				{ "subid", subID.ToString() },
-				{ "action", "add_to_cart" }
+				{ "action", "add_to_cart" },
+				{ "subid", subID.ToString() }
 			};
 
 			HtmlDocument htmlDocument = await UrlPostToHtmlDocumentWithSession(SteamStoreURL, request, data).ConfigureAwait(false);
@@ -183,7 +183,8 @@ namespace ArchiSteamFarm {
 					iEconService.Timeout = WebBrowser.Timeout;
 
 					try {
-						response = await WebLimitRequest(WebAPI.DefaultBaseAddress.Host,
+						response = await WebLimitRequest(
+							WebAPI.DefaultBaseAddress.Host,
 #pragma warning disable ConfigureAwaitChecker // CAC001
 							// ReSharper disable once AccessToDisposedClosure
 							async () => await iEconService.DeclineTradeOffer(
@@ -231,7 +232,8 @@ namespace ArchiSteamFarm {
 					iEconService.Timeout = WebBrowser.Timeout;
 
 					try {
-						response = await WebLimitRequest(WebAPI.DefaultBaseAddress.Host,
+						response = await WebLimitRequest(
+							WebAPI.DefaultBaseAddress.Host,
 #pragma warning disable ConfigureAwaitChecker // CAC001
 							// ReSharper disable once AccessToDisposedClosure
 							async () => await iEconService.GetTradeOffers(
@@ -357,7 +359,7 @@ namespace ArchiSteamFarm {
 				return null;
 			}
 
-			string request = "/mobileconf/details/" + confirmation.ID + "?l=english&p=" + deviceID + "&a=" + SteamID + "&k=" + WebUtility.UrlEncode(confirmationHash) + "&t=" + time + "&m=android&tag=conf";
+			string request = "/mobileconf/details/" + confirmation.ID + "?a=" + SteamID + "&k=" + WebUtility.UrlEncode(confirmationHash) + "&l=english&m=android&p=" + WebUtility.UrlEncode(deviceID) + "&t=" + time + "&tag=conf";
 
 			Steam.ConfirmationDetails response = await UrlGetToJsonObjectWithSession<Steam.ConfirmationDetails>(SteamCommunityURL, request).ConfigureAwait(false);
 			if (response?.Success != true) {
@@ -374,7 +376,7 @@ namespace ArchiSteamFarm {
 				return null;
 			}
 
-			string request = "/mobileconf/conf?l=english&p=" + deviceID + "&a=" + SteamID + "&k=" + WebUtility.UrlEncode(confirmationHash) + "&t=" + time + "&m=android&tag=conf";
+			string request = "/mobileconf/conf?a=" + SteamID + "&k=" + WebUtility.UrlEncode(confirmationHash) + "&l=english&m=android&p=" + WebUtility.UrlEncode(deviceID) + "&t=" + time + "&tag=conf";
 			return await UrlGetToHtmlDocumentWithSession(SteamCommunityURL, request).ConfigureAwait(false);
 		}
 
@@ -384,7 +386,7 @@ namespace ArchiSteamFarm {
 		}
 
 		internal async Task<HashSet<ulong>> GetFamilySharingSteamIDs() {
-			const string request = "/account/managedevices";
+			const string request = "/account/managedevices?l=english";
 			HtmlDocument htmlDocument = await UrlGetToHtmlDocumentWithSession(SteamStoreURL, request).ConfigureAwait(false);
 
 			HtmlNodeCollection htmlNodes = htmlDocument?.DocumentNode.SelectNodes("(//table[@class='accountTable'])[last()]//a/@data-miniprofile");
@@ -432,7 +434,7 @@ namespace ArchiSteamFarm {
 			HashSet<Steam.Asset> result = new HashSet<Steam.Asset>();
 
 			// 5000 is maximum allowed count per single request
-			string request = "/inventory/" + SteamID + "/" + appID + "/" + contextID + "?l=english&count=5000";
+			string request = "/inventory/" + SteamID + "/" + appID + "/" + contextID + "?count=5000&l=english";
 			ulong startAssetID = 0;
 
 			await InventorySemaphore.WaitAsync().ConfigureAwait(false);
@@ -522,16 +524,18 @@ namespace ArchiSteamFarm {
 				if (Program.GlobalConfig.InventoryLimiterDelay == 0) {
 					InventorySemaphore.Release();
 				} else {
-					Utilities.InBackground(async () => {
-						await Task.Delay(Program.GlobalConfig.InventoryLimiterDelay * 1000).ConfigureAwait(false);
-						InventorySemaphore.Release();
-					});
+					Utilities.InBackground(
+						async () => {
+							await Task.Delay(Program.GlobalConfig.InventoryLimiterDelay * 1000).ConfigureAwait(false);
+							InventorySemaphore.Release();
+						}
+					);
 				}
 			}
 		}
 
 		internal async Task<Dictionary<uint, string>> GetMyOwnedGames() {
-			const string request = "/my/games?xml=1";
+			const string request = "/my/games?l=english&xml=1";
 
 			XmlDocument response = await UrlGetToXmlDocumentWithSession(SteamCommunityURL, request).ConfigureAwait(false);
 
@@ -582,7 +586,8 @@ namespace ArchiSteamFarm {
 					iPlayerService.Timeout = WebBrowser.Timeout;
 
 					try {
-						response = await WebLimitRequest(WebAPI.DefaultBaseAddress.Host,
+						response = await WebLimitRequest(
+							WebAPI.DefaultBaseAddress.Host,
 #pragma warning disable ConfigureAwaitChecker // CAC001
 							// ReSharper disable once AccessToDisposedClosure
 							async () => await iPlayerService.GetOwnedGames(
@@ -626,7 +631,8 @@ namespace ArchiSteamFarm {
 					iTwoFactorService.Timeout = WebBrowser.Timeout;
 
 					try {
-						response = await WebLimitRequest(WebAPI.DefaultBaseAddress.Host,
+						response = await WebLimitRequest(
+							WebAPI.DefaultBaseAddress.Host,
 #pragma warning disable ConfigureAwaitChecker // CAC001
 							// ReSharper disable once AccessToDisposedClosure
 							async () => await iTwoFactorService.QueryTime(
@@ -726,7 +732,8 @@ namespace ArchiSteamFarm {
 					iEconService.Timeout = WebBrowser.Timeout;
 
 					try {
-						response = await WebLimitRequest(WebAPI.DefaultBaseAddress.Host,
+						response = await WebLimitRequest(
+							WebAPI.DefaultBaseAddress.Host,
 #pragma warning disable ConfigureAwaitChecker // CAC001
 							// ReSharper disable once AccessToDisposedClosure
 							async () => await iEconService.GetTradeHoldDurations(
@@ -755,7 +762,7 @@ namespace ArchiSteamFarm {
 				return null;
 			}
 
-			return resultInSeconds == 0 ? (byte?) 0 : (byte) (resultInSeconds / 86400);
+			return resultInSeconds == 0 ? (byte) 0 : (byte) (resultInSeconds / 86400);
 		}
 
 		internal async Task<string> GetTradeToken() {
@@ -814,7 +821,7 @@ namespace ArchiSteamFarm {
 				return null;
 			}
 
-			string request = "/mobileconf/ajaxop?op=" + (accept ? "allow" : "cancel") + "&p=" + deviceID + "&a=" + SteamID + "&k=" + WebUtility.UrlEncode(confirmationHash) + "&t=" + time + "&m=android&tag=conf&cid=" + confirmationID + "&ck=" + confirmationKey;
+			string request = "/mobileconf/ajaxop?a=" + SteamID + "&cid=" + confirmationID + "&ck=" + confirmationKey + "&k=" + WebUtility.UrlEncode(confirmationHash) + "&l=english&m=android&op=" + (accept ? "allow" : "cancel") + "&p=" + WebUtility.UrlEncode(deviceID) + "&t=" + time + "&tag=conf";
 
 			Steam.BooleanResponse response = await UrlGetToJsonObjectWithSession<Steam.BooleanResponse>(SteamCommunityURL, request).ConfigureAwait(false);
 			return response?.Success;
@@ -830,12 +837,12 @@ namespace ArchiSteamFarm {
 
 			// Extra entry for sessionID
 			List<KeyValuePair<string, string>> data = new List<KeyValuePair<string, string>>(8 + confirmations.Count * 2) {
-				new KeyValuePair<string, string>("op", accept ? "allow" : "cancel"),
-				new KeyValuePair<string, string>("p", deviceID),
 				new KeyValuePair<string, string>("a", SteamID.ToString()),
 				new KeyValuePair<string, string>("k", confirmationHash),
-				new KeyValuePair<string, string>("t", time.ToString()),
 				new KeyValuePair<string, string>("m", "android"),
+				new KeyValuePair<string, string>("op", accept ? "allow" : "cancel"),
+				new KeyValuePair<string, string>("p", deviceID),
+				new KeyValuePair<string, string>("t", time.ToString()),
 				new KeyValuePair<string, string>("tag", "conf")
 			};
 
@@ -875,14 +882,10 @@ namespace ArchiSteamFarm {
 
 		internal async Task<bool> HasValidApiKey() => !string.IsNullOrEmpty(await GetApiKey().ConfigureAwait(false));
 
-		internal async Task<bool> Init(ulong steamID, EUniverse universe, string webAPIUserNonce, string parentalPin, string vanityURL = null) {
+		internal async Task<bool> Init(ulong steamID, EUniverse universe, string webAPIUserNonce, string parentalPin) {
 			if ((steamID == 0) || (universe == EUniverse.Invalid) || string.IsNullOrEmpty(webAPIUserNonce) || string.IsNullOrEmpty(parentalPin)) {
 				Bot.ArchiLogger.LogNullError(nameof(steamID) + " || " + nameof(universe) + " || " + nameof(webAPIUserNonce) + " || " + nameof(parentalPin));
 				return false;
-			}
-
-			if (!string.IsNullOrEmpty(vanityURL)) {
-				VanityURL = vanityURL;
 			}
 
 			string sessionID = Convert.ToBase64String(Encoding.UTF8.GetBytes(steamID.ToString()));
@@ -911,7 +914,8 @@ namespace ArchiSteamFarm {
 				iSteamUserAuth.Timeout = WebBrowser.Timeout;
 
 				try {
-					response = await WebLimitRequest(WebAPI.DefaultBaseAddress.Host,
+					response = await WebLimitRequest(
+						WebAPI.DefaultBaseAddress.Host,
 #pragma warning disable ConfigureAwaitChecker // CAC001
 						// ReSharper disable once AccessToDisposedClosure
 						async () => await iSteamUserAuth.AuthenticateUser(
@@ -1007,10 +1011,12 @@ namespace ArchiSteamFarm {
 				if (Program.GlobalConfig.InventoryLimiterDelay == 0) {
 					InventorySemaphore.Release();
 				} else {
-					Utilities.InBackground(async () => {
-						await Task.Delay(Program.GlobalConfig.InventoryLimiterDelay * 1000).ConfigureAwait(false);
-						InventorySemaphore.Release();
-					});
+					Utilities.InBackground(
+						async () => {
+							await Task.Delay(Program.GlobalConfig.InventoryLimiterDelay * 1000).ConfigureAwait(false);
+							InventorySemaphore.Release();
+						}
+					);
 				}
 			}
 		}
@@ -1025,6 +1031,8 @@ namespace ArchiSteamFarm {
 			CachedPublicInventory = null;
 			SteamID = 0;
 		}
+
+		internal void OnVanityURLChanged(string vanityURL = null) => VanityURL = string.IsNullOrEmpty(vanityURL) ? null : vanityURL;
 
 		internal async Task<(EResult Result, EPurchaseResultDetail? PurchaseResult)?> RedeemWalletKey(string key) {
 			if (string.IsNullOrEmpty(key)) {
@@ -1067,13 +1075,15 @@ namespace ArchiSteamFarm {
 			const string referer = SteamCommunityURL + "/tradeoffer/new";
 
 			// Extra entry for sessionID
-			foreach (Dictionary<string, string> data in trades.Select(trade => new Dictionary<string, string>(6) {
-				{ "serverid", "1" },
-				{ "partner", partnerID.ToString() },
-				{ "tradeoffermessage", "Sent by " + SharedInfo.PublicIdentifier + "/" + SharedInfo.Version },
-				{ "json_tradeoffer", JsonConvert.SerializeObject(trade) },
-				{ "trade_offer_create_params", string.IsNullOrEmpty(token) ? "" : new JObject { { "trade_offer_access_token", token } }.ToString(Formatting.None) }
-			})) {
+			foreach (Dictionary<string, string> data in trades.Select(
+				trade => new Dictionary<string, string>(6) {
+					{ "json_tradeoffer", JsonConvert.SerializeObject(trade) },
+					{ "partner", partnerID.ToString() },
+					{ "serverid", "1" },
+					{ "trade_offer_create_params", string.IsNullOrEmpty(token) ? "" : new JObject { { "trade_offer_access_token", token } }.ToString(Formatting.None) },
+					{ "tradeoffermessage", "Sent by " + SharedInfo.PublicIdentifier + "/" + SharedInfo.Version }
+				}
+			)) {
 				if (!await UrlPostWithSession(SteamCommunityURL, request, data, referer).ConfigureAwait(false)) {
 					return false;
 				}
@@ -1092,8 +1102,8 @@ namespace ArchiSteamFarm {
 
 			// Extra entry for sessionID
 			Dictionary<string, string> data = new Dictionary<string, string>(3) {
-				{ "voteid", voteID.ToString() },
-				{ "appid", appID.ToString() }
+				{ "appid", appID.ToString() },
+				{ "voteid", voteID.ToString() }
 			};
 
 			return await UrlPostWithSession(SteamStoreURL, request, data).ConfigureAwait(false);
@@ -1457,8 +1467,8 @@ namespace ArchiSteamFarm {
 
 			// Extra entry for sessionID
 			Dictionary<string, string> data = new Dictionary<string, string>(4) {
-				{ "domain", "localhost" },
 				{ "agreeToTerms", "agreed" },
+				{ "domain", "localhost" },
 				{ "Submit", "Register" }
 			};
 
@@ -2077,10 +2087,12 @@ namespace ArchiSteamFarm {
 				await limiters.RateLimitingSemaphore.WaitAsync().ConfigureAwait(false);
 
 				// We release rate-limiter semaphore regardless of our task completion, since we use that one only to guarantee rate-limiting of their creation
-				Utilities.InBackground(async () => {
-					await Task.Delay(Program.GlobalConfig.WebLimiterDelay).ConfigureAwait(false);
-					limiters.RateLimitingSemaphore.Release();
-				});
+				Utilities.InBackground(
+					async () => {
+						await Task.Delay(Program.GlobalConfig.WebLimiterDelay).ConfigureAwait(false);
+						limiters.RateLimitingSemaphore.Release();
+					}
+				);
 
 				return await function().ConfigureAwait(false);
 			} finally {
