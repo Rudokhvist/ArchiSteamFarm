@@ -84,6 +84,7 @@ namespace ArchiSteamFarm {
 		[JsonProperty]
 		private readonly CardsFarmer CardsFarmer;
 
+		private readonly SemaphoreSlim GamesRedeemerInBackgroundSemaphore = new SemaphoreSlim(1, 1);
 		private readonly ConcurrentHashSet<ulong> HandledGifts = new ConcurrentHashSet<ulong>();
 		private readonly Timer HeartBeatTimer;
 		private readonly SemaphoreSlim InitializationSemaphore = new SemaphoreSlim(1, 1);
@@ -245,6 +246,7 @@ namespace ArchiSteamFarm {
 		public void Dispose() {
 			// Those are objects that are always being created if constructor doesn't throw exception
 			CallbackSemaphore.Dispose();
+			GamesRedeemerInBackgroundSemaphore.Dispose();
 			InitializationSemaphore.Dispose();
 			LootingSemaphore.Dispose();
 			PICSSemaphore.Dispose();
@@ -538,6 +540,10 @@ namespace ArchiSteamFarm {
 							continue;
 						}
 					}
+				} else if (botName.StartsWith("r!", StringComparison.OrdinalIgnoreCase)) {
+					string botPattern = botName.Substring(2);
+					IEnumerable<Bot> regexMatches = Bots.Where(kvp => Regex.Match(kvp.Key, botPattern, RegexOptions.IgnoreCase).Success).Select(kvp => kvp.Value);
+					result.UnionWith(regexMatches);
 				}
 
 				if (!Bots.TryGetValue(botName, out Bot targetBot)) {
@@ -549,6 +555,8 @@ namespace ArchiSteamFarm {
 
 			return result;
 		}
+
+		internal async Task<HashSet<uint>> GetMarketableAppIDs() => await ArchiWebHandler.GetAppList().ConfigureAwait(false);
 
 		internal async Task<Dictionary<uint, (uint ChangeNumber, HashSet<uint> AppIDs)>> GetPackagesData(IReadOnlyCollection<uint> packageIDs) {
 			if ((packageIDs == null) || (packageIDs.Count == 0)) {
@@ -1074,6 +1082,12 @@ namespace ArchiSteamFarm {
 							}
 
 							goto default;
+						case "LOOT@":
+							if (args.Length > 2) {
+								return await ResponseLootByRealAppIDs(steamID, args[1], Utilities.GetArgsAsText(args, 2, ",")).ConfigureAwait(false);
+							}
+
+							return await ResponseLootByRealAppIDs(steamID, args[1]).ConfigureAwait(false);
 						case "LOOT&":
 							return await ResponseLootSwitch(steamID, Utilities.GetArgsAsText(args, 1, ",")).ConfigureAwait(false);
 						case "NICKNAME":
@@ -1233,7 +1247,7 @@ namespace ArchiSteamFarm {
 
 			await BotDatabase.AddGamesToRedeemInBackground(gamesToRedeemInBackground).ConfigureAwait(false);
 
-			if (BotDatabase.HasGamesToRedeemInBackground && (GamesRedeemerInBackgroundTimer == null) && IsConnectedAndLoggedOn) {
+			if ((GamesRedeemerInBackgroundTimer == null) && BotDatabase.HasGamesToRedeemInBackground && IsConnectedAndLoggedOn) {
 				Utilities.InBackground(RedeemGamesInBackground);
 			}
 		}
@@ -1975,7 +1989,7 @@ namespace ArchiSteamFarm {
 
 			OwnedPackageIDs.Clear();
 
-			bool refreshData = !BotConfig.IdleRefundableGames || (BotConfig.FarmingOrder == BotConfig.EFarmingOrder.RedeemDateTimesAscending) || (BotConfig.FarmingOrder == BotConfig.EFarmingOrder.RedeemDateTimesDescending);
+			bool refreshData = !BotConfig.IdleRefundableGames || BotConfig.FarmingOrders.Contains(BotConfig.EFarmingOrder.RedeemDateTimesAscending) || BotConfig.FarmingOrders.Contains(BotConfig.EFarmingOrder.RedeemDateTimesDescending);
 			Dictionary<uint, uint> packagesToRefresh = new Dictionary<uint, uint>();
 
 			foreach (SteamApps.LicenseListCallback.License license in callback.LicenseList.Where(license => license.PackageID != 0)) {
@@ -2081,7 +2095,10 @@ namespace ArchiSteamFarm {
 
 					break;
 				case EResult.OK:
-					ArchiLogger.LogGenericInfo(Strings.BotLoggedOn);
+					AccountFlags = callback.AccountFlags;
+					CachedSteamID = callback.ClientSteamID;
+
+					ArchiLogger.LogGenericInfo(string.Format(Strings.BotLoggedOn, CachedSteamID + (!string.IsNullOrEmpty(callback.VanityURL) ? "/" + callback.VanityURL : "")));
 
 					// Old status for these doesn't matter, we'll update them if needed
 					LibraryLockedBySteamID = TwoFactorCodeFailures = 0;
@@ -2095,9 +2112,6 @@ namespace ArchiSteamFarm {
 							Timeout.InfiniteTimeSpan // Period
 						);
 					}
-
-					AccountFlags = callback.AccountFlags;
-					CachedSteamID = callback.ClientSteamID;
 
 					if (IsAccountLimited) {
 						ArchiLogger.LogGenericWarning(Strings.BotAccountLimited);
@@ -2137,7 +2151,7 @@ namespace ArchiSteamFarm {
 						}
 					}
 
-					if (BotDatabase.HasGamesToRedeemInBackground) {
+					if ((GamesRedeemerInBackgroundTimer == null) && BotDatabase.HasGamesToRedeemInBackground) {
 						Utilities.InBackground(RedeemGamesInBackground);
 					}
 
@@ -2207,7 +2221,7 @@ namespace ArchiSteamFarm {
 			}
 
 			string loginKey = callback.LoginKey;
-			if (!string.IsNullOrEmpty(loginKey) && (BotConfig.PasswordFormat != CryptoHelper.ECryptoMethod.PlainText)) {
+			if (BotConfig.PasswordFormat != CryptoHelper.ECryptoMethod.PlainText) {
 				loginKey = CryptoHelper.Encrypt(BotConfig.PasswordFormat, loginKey);
 			}
 
@@ -2365,9 +2379,10 @@ namespace ArchiSteamFarm {
 						ItemsCount = notification.Value;
 
 						if (newItems) {
+							ArchiLogger.LogGenericTrace(nameof(ArchiHandler.UserNotificationsCallback.EUserNotification.Items));
 							Utilities.InBackground(CardsFarmer.OnNewItemsNotification);
 
-							if (BotConfig.DismissInventoryNotifications) {
+							if (BotConfig.BotBehaviour.HasFlag(BotConfig.EBotBehaviour.DismissInventoryNotifications)) {
 								Utilities.InBackground(ArchiWebHandler.MarkInventory);
 							}
 						}
@@ -2378,6 +2393,7 @@ namespace ArchiSteamFarm {
 						TradesCount = notification.Value;
 
 						if (newTrades) {
+							ArchiLogger.LogGenericTrace(nameof(ArchiHandler.UserNotificationsCallback.EUserNotification.Trading));
 							Utilities.InBackground(Trading.OnNewTrade);
 						}
 
@@ -2397,95 +2413,103 @@ namespace ArchiSteamFarm {
 
 		[SuppressMessage("ReSharper", "FunctionComplexityOverflow")]
 		private async Task RedeemGamesInBackground() {
-			if (GamesRedeemerInBackgroundTimer != null) {
-				GamesRedeemerInBackgroundTimer.Dispose();
-				GamesRedeemerInBackgroundTimer = null;
+			if (!await GamesRedeemerInBackgroundSemaphore.WaitAsync(0).ConfigureAwait(false)) {
+				return;
 			}
 
-			ArchiLogger.LogGenericInfo(Strings.Starting);
-
-			while (IsConnectedAndLoggedOn && BotDatabase.HasGamesToRedeemInBackground) {
-				(string key, string name) = BotDatabase.GetGameToRedeemInBackground();
-				if (string.IsNullOrEmpty(key) || string.IsNullOrEmpty(name)) {
-					ArchiLogger.LogNullError(nameof(key) + " || " + nameof(name));
-					break;
+			try {
+				if (GamesRedeemerInBackgroundTimer != null) {
+					GamesRedeemerInBackgroundTimer.Dispose();
+					GamesRedeemerInBackgroundTimer = null;
 				}
 
-				await LimitGiftsRequestsAsync().ConfigureAwait(false);
+				ArchiLogger.LogGenericInfo(Strings.Starting);
 
-				ArchiHandler.PurchaseResponseCallback result = await ArchiHandler.RedeemKey(key).ConfigureAwait(false);
-				if (result == null) {
-					continue;
-				}
+				while (IsConnectedAndLoggedOn && BotDatabase.HasGamesToRedeemInBackground) {
+					(string key, string name) = BotDatabase.GetGameToRedeemInBackground();
+					if (string.IsNullOrEmpty(key) || string.IsNullOrEmpty(name)) {
+						ArchiLogger.LogNullError(nameof(key) + " || " + nameof(name));
+						break;
+					}
 
-				if (result.PurchaseResultDetail == EPurchaseResultDetail.CannotRedeemCodeFromClient) {
-					// If it's a wallet code, we try to redeem it first, then handle the inner result as our primary one
-					(EResult Result, EPurchaseResultDetail? PurchaseResult)? walletResult = await ArchiWebHandler.RedeemWalletKey(key).ConfigureAwait(false);
+					await LimitGiftsRequestsAsync().ConfigureAwait(false);
 
-					if (walletResult != null) {
-						result.Result = walletResult.Value.Result;
-						result.PurchaseResultDetail = walletResult.Value.PurchaseResult.GetValueOrDefault(walletResult.Value.Result == EResult.OK ? EPurchaseResultDetail.NoDetail : EPurchaseResultDetail.BadActivationCode); // BadActivationCode is our smart guess in this case
-					} else {
-						result.Result = EResult.Timeout;
-						result.PurchaseResultDetail = EPurchaseResultDetail.Timeout;
+					ArchiHandler.PurchaseResponseCallback result = await ArchiHandler.RedeemKey(key).ConfigureAwait(false);
+					if (result == null) {
+						continue;
+					}
+
+					if (result.PurchaseResultDetail == EPurchaseResultDetail.CannotRedeemCodeFromClient) {
+						// If it's a wallet code, we try to redeem it first, then handle the inner result as our primary one
+						(EResult Result, EPurchaseResultDetail? PurchaseResult)? walletResult = await ArchiWebHandler.RedeemWalletKey(key).ConfigureAwait(false);
+
+						if (walletResult != null) {
+							result.Result = walletResult.Value.Result;
+							result.PurchaseResultDetail = walletResult.Value.PurchaseResult.GetValueOrDefault(walletResult.Value.Result == EResult.OK ? EPurchaseResultDetail.NoDetail : EPurchaseResultDetail.BadActivationCode); // BadActivationCode is our smart guess in this case
+						} else {
+							result.Result = EResult.Timeout;
+							result.PurchaseResultDetail = EPurchaseResultDetail.Timeout;
+						}
+					}
+
+					ArchiLogger.LogGenericDebug(string.Format(Strings.BotRedeem, key, result.Result + "/" + result.PurchaseResultDetail));
+
+					bool rateLimited = false;
+					bool redeemed = false;
+
+					switch (result.PurchaseResultDetail) {
+						case EPurchaseResultDetail.AccountLocked:
+						case EPurchaseResultDetail.AlreadyPurchased:
+						case EPurchaseResultDetail.CannotRedeemCodeFromClient:
+						case EPurchaseResultDetail.DoesNotOwnRequiredApp:
+						case EPurchaseResultDetail.RestrictedCountry:
+						case EPurchaseResultDetail.Timeout:
+							break;
+						case EPurchaseResultDetail.BadActivationCode:
+						case EPurchaseResultDetail.DuplicateActivationCode:
+						case EPurchaseResultDetail.NoDetail: // OK
+							redeemed = true;
+							break;
+						case EPurchaseResultDetail.RateLimited:
+							rateLimited = true;
+							break;
+						default:
+							ASF.ArchiLogger.LogGenericError(string.Format(Strings.WarningUnknownValuePleaseReport, nameof(result.PurchaseResultDetail), result.PurchaseResultDetail));
+							break;
+					}
+
+					if (rateLimited) {
+						break;
+					}
+
+					await BotDatabase.RemoveGameToRedeemInBackground(key).ConfigureAwait(false);
+
+					string logEntry = name + DefaultBackgroundKeysRedeemerSeparator + "[" + result.PurchaseResultDetail + "]" + ((result.Items != null) && (result.Items.Count > 0) ? DefaultBackgroundKeysRedeemerSeparator + string.Join("", result.Items) : "") + DefaultBackgroundKeysRedeemerSeparator + key;
+
+					try {
+						await RuntimeCompatibility.File.AppendAllTextAsync(redeemed ? KeysToRedeemUsedFilePath : KeysToRedeemUnusedFilePath, logEntry + Environment.NewLine).ConfigureAwait(false);
+					} catch (Exception e) {
+						ArchiLogger.LogGenericException(e);
+						ArchiLogger.LogGenericError(string.Format(Strings.Content, logEntry));
+						break;
 					}
 				}
 
-				ArchiLogger.LogGenericDebug(string.Format(Strings.BotRedeem, key, result.Result + "/" + result.PurchaseResultDetail));
+				if (BotDatabase.HasGamesToRedeemInBackground) {
+					ArchiLogger.LogGenericInfo(string.Format(Strings.BotRateLimitExceeded, TimeSpan.FromHours(RedeemCooldownInHours).ToHumanReadable()));
 
-				bool rateLimited = false;
-				bool redeemed = false;
-
-				switch (result.PurchaseResultDetail) {
-					case EPurchaseResultDetail.AccountLocked:
-					case EPurchaseResultDetail.AlreadyPurchased:
-					case EPurchaseResultDetail.CannotRedeemCodeFromClient:
-					case EPurchaseResultDetail.DoesNotOwnRequiredApp:
-					case EPurchaseResultDetail.RestrictedCountry:
-					case EPurchaseResultDetail.Timeout:
-						break;
-					case EPurchaseResultDetail.BadActivationCode:
-					case EPurchaseResultDetail.DuplicateActivationCode:
-					case EPurchaseResultDetail.NoDetail: // OK
-						redeemed = true;
-						break;
-					case EPurchaseResultDetail.RateLimited:
-						rateLimited = true;
-						break;
-					default:
-						ASF.ArchiLogger.LogGenericError(string.Format(Strings.WarningUnknownValuePleaseReport, nameof(result.PurchaseResultDetail), result.PurchaseResultDetail));
-						break;
+					GamesRedeemerInBackgroundTimer = new Timer(
+						async e => await RedeemGamesInBackground().ConfigureAwait(false),
+						null,
+						TimeSpan.FromHours(RedeemCooldownInHours), // Delay
+						Timeout.InfiniteTimeSpan // Period
+					);
 				}
 
-				if (rateLimited) {
-					break;
-				}
-
-				await BotDatabase.RemoveGameToRedeemInBackground(key).ConfigureAwait(false);
-
-				string logEntry = name + DefaultBackgroundKeysRedeemerSeparator + "[" + result.PurchaseResultDetail + "]" + ((result.Items != null) && (result.Items.Count > 0) ? DefaultBackgroundKeysRedeemerSeparator + string.Join("", result.Items) : "") + DefaultBackgroundKeysRedeemerSeparator + key;
-
-				try {
-					await RuntimeCompatibility.File.AppendAllTextAsync(redeemed ? KeysToRedeemUsedFilePath : KeysToRedeemUnusedFilePath, logEntry + Environment.NewLine).ConfigureAwait(false);
-				} catch (Exception e) {
-					ArchiLogger.LogGenericException(e);
-					ArchiLogger.LogGenericError(string.Format(Strings.Content, logEntry));
-					break;
-				}
+				ArchiLogger.LogGenericInfo(Strings.Done);
+			} finally {
+				GamesRedeemerInBackgroundSemaphore.Release();
 			}
-
-			if (BotDatabase.HasGamesToRedeemInBackground) {
-				ArchiLogger.LogGenericInfo(string.Format(Strings.BotRateLimitExceeded, TimeSpan.FromHours(RedeemCooldownInHours).ToHumanReadable()));
-
-				GamesRedeemerInBackgroundTimer = new Timer(
-					async e => await RedeemGamesInBackground().ConfigureAwait(false),
-					null,
-					TimeSpan.FromHours(RedeemCooldownInHours), // Delay
-					Timeout.InfiniteTimeSpan // Period
-				);
-			}
-
-			ArchiLogger.LogGenericInfo(Strings.Done);
 		}
 
 		private async Task ResetGamesPlayed() {
@@ -2618,8 +2642,14 @@ namespace ArchiSteamFarm {
 			}
 
 			StringBuilder response = new StringBuilder();
+
 			foreach (uint gameID in gameIDs) {
 				await LimitGiftsRequestsAsync().ConfigureAwait(false);
+
+				if (await ArchiWebHandler.AddFreeLicense(gameID).ConfigureAwait(false)) {
+					response.Append(FormatBotResponse(string.Format(Strings.BotAddLicenseWithItems, gameID, EResult.OK, "sub/" + gameID)));
+					continue;
+				}
 
 				SteamApps.FreeLicenseCallback callback;
 
@@ -2638,15 +2668,7 @@ namespace ArchiSteamFarm {
 					break;
 				}
 
-				if (callback.GrantedApps.Count > 0) {
-					response.Append(FormatBotResponse(string.Format(Strings.BotAddLicenseWithItems, gameID, callback.Result, string.Join(", ", callback.GrantedApps))));
-				} else if (callback.GrantedPackages.Count > 0) {
-					response.Append(FormatBotResponse(string.Format(Strings.BotAddLicenseWithItems, gameID, callback.Result, string.Join(", ", callback.GrantedPackages))));
-				} else if (await ArchiWebHandler.AddFreeLicense(gameID).ConfigureAwait(false)) {
-					response.Append(FormatBotResponse(string.Format(Strings.BotAddLicenseWithItems, gameID, EResult.OK, gameID)));
-				} else {
-					response.Append(FormatBotResponse(string.Format(Strings.BotAddLicense, gameID, EResult.AccessDenied)));
-				}
+				response.Append(FormatBotResponse((callback.GrantedApps.Count > 0) || (callback.GrantedPackages.Count > 0) ? string.Format(Strings.BotAddLicenseWithItems, gameID, callback.Result, string.Join(", ", callback.GrantedApps.Select(appID => "app/" + appID).Union(callback.GrantedPackages.Select(subID => "sub/" + subID)))) : string.Format(Strings.BotAddLicense, gameID, callback.Result)));
 			}
 
 			return response.Length > 0 ? response.ToString() : null;
@@ -2755,22 +2777,10 @@ namespace ArchiSteamFarm {
 				return FormatBotResponse(Strings.BotSendingTradeToYourself);
 			}
 
-			lock (LootingSemaphore) {
-				if (LootingScheduled) {
-					return FormatBotResponse(Strings.Done);
-				}
-
-				LootingScheduled = true;
-			}
-
 			await LootingSemaphore.WaitAsync().ConfigureAwait(false);
 
 			try {
-				lock (LootingSemaphore) {
-					LootingScheduled = false;
-				}
-
-				HashSet<Steam.Asset> inventory = await ArchiWebHandler.GetMyInventory(true, appID, contextID).ConfigureAwait(false);
+				HashSet<Steam.Asset> inventory = await ArchiWebHandler.GetInventory(CachedSteamID, appID, contextID, true).ConfigureAwait(false);
 				if ((inventory == null) || (inventory.Count == 0)) {
 					return FormatBotResponse(string.Format(Strings.ErrorIsEmpty, nameof(inventory)));
 				}
@@ -3650,7 +3660,7 @@ namespace ArchiSteamFarm {
 					LootingScheduled = false;
 				}
 
-				HashSet<Steam.Asset> inventory = await ArchiWebHandler.GetMyInventory(true, wantedTypes: BotConfig.LootableTypes).ConfigureAwait(false);
+				HashSet<Steam.Asset> inventory = await ArchiWebHandler.GetInventory(CachedSteamID, tradable: true, wantedTypes: BotConfig.LootableTypes).ConfigureAwait(false);
 				if ((inventory == null) || (inventory.Count == 0)) {
 					return FormatBotResponse(string.Format(Strings.ErrorIsEmpty, nameof(inventory)));
 				}
@@ -3689,6 +3699,114 @@ namespace ArchiSteamFarm {
 			}
 
 			IEnumerable<Task<string>> tasks = bots.Select(bot => bot.ResponseLoot(steamID));
+			ICollection<string> results;
+
+			switch (Program.GlobalConfig.OptimizationMode) {
+				case GlobalConfig.EOptimizationMode.MinMemoryUsage:
+					results = new List<string>(bots.Count);
+					foreach (Task<string> task in tasks) {
+						results.Add(await task.ConfigureAwait(false));
+					}
+
+					break;
+				default:
+					results = await Task.WhenAll(tasks).ConfigureAwait(false);
+					break;
+			}
+
+			List<string> responses = new List<string>(results.Where(result => !string.IsNullOrEmpty(result)));
+			return responses.Count > 0 ? string.Join("", responses) : null;
+		}
+
+		private async Task<string> ResponseLootByRealAppIDs(ulong steamID, string targetRealAppIDs) {
+			if ((steamID == 0) || string.IsNullOrEmpty(targetRealAppIDs)) {
+				ArchiLogger.LogNullError(nameof(steamID) + " || " + nameof(targetRealAppIDs));
+				return null;
+			}
+
+			if (!IsMaster(steamID)) {
+				return null;
+			}
+
+			if (!IsConnectedAndLoggedOn) {
+				return FormatBotResponse(Strings.BotNotConnected);
+			}
+
+			string[] appIDTexts = targetRealAppIDs.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+
+			if (appIDTexts.Length == 0) {
+				return FormatBotResponse(string.Format(Strings.ErrorIsEmpty, nameof(appIDTexts)));
+			}
+
+			HashSet<uint> realAppIDs = new HashSet<uint>();
+
+			foreach (string appIDText in appIDTexts) {
+				if (!uint.TryParse(appIDText, out uint appID) || (appID == 0)) {
+					return FormatBotResponse(string.Format(Strings.ErrorIsInvalid, nameof(appID)));
+				}
+
+				realAppIDs.Add(appID);
+			}
+
+			if (!LootingAllowed) {
+				return FormatBotResponse(Strings.BotLootingTemporarilyDisabled);
+			}
+
+			if (BotConfig.LootableTypes.Count == 0) {
+				return FormatBotResponse(Strings.BotLootingNoLootableTypes);
+			}
+
+			ulong targetSteamMasterID = GetFirstSteamMasterID();
+			if (targetSteamMasterID == 0) {
+				return FormatBotResponse(Strings.BotLootingMasterNotDefined);
+			}
+
+			if (targetSteamMasterID == CachedSteamID) {
+				return FormatBotResponse(Strings.BotSendingTradeToYourself);
+			}
+
+			await LootingSemaphore.WaitAsync().ConfigureAwait(false);
+
+			try {
+				HashSet<Steam.Asset> inventory = await ArchiWebHandler.GetInventory(CachedSteamID, tradable: true, wantedRealAppIDs: realAppIDs).ConfigureAwait(false);
+				if ((inventory == null) || (inventory.Count == 0)) {
+					return FormatBotResponse(string.Format(Strings.ErrorIsEmpty, nameof(inventory)));
+				}
+
+				if (!await ArchiWebHandler.MarkSentTrades().ConfigureAwait(false)) {
+					return FormatBotResponse(Strings.BotLootingFailed);
+				}
+
+				if (!await ArchiWebHandler.SendTradeOffer(targetSteamMasterID, inventory, BotConfig.SteamTradeToken).ConfigureAwait(false)) {
+					return FormatBotResponse(Strings.BotLootingFailed);
+				}
+
+				if (HasMobileAuthenticator) {
+					// Give Steam network some time to generate confirmations
+					await Task.Delay(3000).ConfigureAwait(false);
+					if (!await AcceptConfirmations(true, Steam.ConfirmationDetails.EType.Trade, targetSteamMasterID).ConfigureAwait(false)) {
+						return FormatBotResponse(Strings.BotLootingFailed);
+					}
+				}
+			} finally {
+				LootingSemaphore.Release();
+			}
+
+			return FormatBotResponse(Strings.BotLootingSuccess);
+		}
+
+		private static async Task<string> ResponseLootByRealAppIDs(ulong steamID, string botNames, string realappID) {
+			if ((steamID == 0) || string.IsNullOrEmpty(botNames) || string.IsNullOrEmpty(realappID)) {
+				ASF.ArchiLogger.LogNullError(nameof(steamID) + " || " + nameof(botNames) + " || " + nameof(realappID));
+				return null;
+			}
+
+			HashSet<Bot> bots = GetBots(botNames);
+			if ((bots == null) || (bots.Count == 0)) {
+				return IsOwner(steamID) ? FormatStaticResponse(string.Format(Strings.BotNotFound, botNames)) : null;
+			}
+
+			IEnumerable<Task<string>> tasks = bots.Select(bot => bot.ResponseLootByRealAppIDs(steamID, realappID));
 			ICollection<string> results;
 
 			switch (Program.GlobalConfig.OptimizationMode) {
@@ -4920,7 +5038,7 @@ namespace ArchiSteamFarm {
 					LootingScheduled = false;
 				}
 
-				HashSet<Steam.Asset> inventory = await ArchiWebHandler.GetMyInventory(true, wantedTypes: transferTypes).ConfigureAwait(false);
+				HashSet<Steam.Asset> inventory = await ArchiWebHandler.GetInventory(CachedSteamID, tradable: true, wantedTypes: transferTypes).ConfigureAwait(false);
 				if ((inventory == null) || (inventory.Count == 0)) {
 					return FormatBotResponse(string.Format(Strings.ErrorIsEmpty, nameof(inventory)));
 				}
@@ -5010,24 +5128,15 @@ namespace ArchiSteamFarm {
 				return FormatBotResponse(Strings.BotNotConnected);
 			}
 
-			HashSet<Steam.Asset> inventory = await ArchiWebHandler.GetMyInventory(false, wantedTypes: new HashSet<Steam.Asset.EType> { Steam.Asset.EType.BoosterPack }).ConfigureAwait(false);
+			HashSet<Steam.Asset> inventory = await ArchiWebHandler.GetInventory(CachedSteamID, wantedTypes: new HashSet<Steam.Asset.EType> { Steam.Asset.EType.BoosterPack }).ConfigureAwait(false);
 			if ((inventory == null) || (inventory.Count == 0)) {
 				return FormatBotResponse(string.Format(Strings.ErrorIsEmpty, nameof(inventory)));
 			}
 
-			IEnumerable<Task<bool>> tasks = inventory.Select(item => ArchiWebHandler.UnpackBooster(item.RealAppID, item.AssetID));
-
 			// It'd make sense here to actually check return code of ArchiWebHandler.UnpackBooster(), but it lies most of the time | https://github.com/JustArchi/ArchiSteamFarm/issues/704
-			switch (Program.GlobalConfig.OptimizationMode) {
-				case GlobalConfig.EOptimizationMode.MinMemoryUsage:
-					foreach (Task<bool> task in tasks) {
-						await task.ConfigureAwait(false);
-					}
-
-					break;
-				default:
-					await Task.WhenAll(tasks).ConfigureAwait(false);
-					break;
+			// It'd also make sense to run all of this in parallel, but it seems that Steam has a lot of problems with inventory-related parallel requests | https://steamcommunity.com/groups/ascfarm/discussions/1/3559414588264550284/
+			foreach (Steam.Asset item in inventory) {
+				await ArchiWebHandler.UnpackBooster(item.RealAppID, item.AssetID).ConfigureAwait(false);
 			}
 
 			return FormatBotResponse(Strings.Done);
