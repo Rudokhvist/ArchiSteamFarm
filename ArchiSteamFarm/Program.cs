@@ -4,20 +4,20 @@
 //  / ___ \ | |  | (__ | | | || | ___) || |_|  __/| (_| || | | | | ||  _|| (_| || |   | | | | | |
 // /_/   \_\|_|   \___||_| |_||_||____/  \__|\___| \__,_||_| |_| |_||_|   \__,_||_|   |_| |_| |_|
 // 
-//  Copyright 2015-2018 Łukasz "JustArchi" Domeradzki
-//  Contact: JustArchi@JustArchi.net
+// Copyright 2015-2018 Łukasz "JustArchi" Domeradzki
+// Contact: JustArchi@JustArchi.net
 // 
-//  Licensed under the Apache License, Version 2.0 (the "License");
-//  you may not use this file except in compliance with the License.
-//  You may obtain a copy of the License at
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 // 
-//  http://www.apache.org/licenses/LICENSE-2.0
-//      
-//  Unless required by applicable law or agreed to in writing, software
-//  distributed under the License is distributed on an "AS IS" BASIS,
-//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//  See the License for the specific language governing permissions and
-//  limitations under the License.
+// http://www.apache.org/licenses/LICENSE-2.0
+// 
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 using System;
 using System.Collections;
@@ -36,12 +36,7 @@ using SteamKit2;
 
 namespace ArchiSteamFarm {
 	internal static class Program {
-		internal static byte LoadBalancingDelay {
-			get {
-				byte result = GlobalConfig?.LoginLimiterDelay ?? GlobalConfig.DefaultLoginLimiterDelay;
-				return result >= GlobalConfig.DefaultLoginLimiterDelay ? result : GlobalConfig.DefaultLoginLimiterDelay;
-			}
-		}
+		internal static byte LoadBalancingDelay => Math.Max(GlobalConfig?.LoginLimiterDelay ?? 0, (byte) 10);
 
 		internal static GlobalConfig GlobalConfig { get; private set; }
 		internal static GlobalDatabase GlobalDatabase { get; private set; }
@@ -163,7 +158,7 @@ namespace ArchiSteamFarm {
 				return;
 			}
 
-			CryptoHelper.SetEncryptionKey(cryptKey);
+			ArchiCryptoHelper.SetEncryptionKey(cryptKey);
 		}
 
 		private static void HandlePathArgument(string path) {
@@ -202,7 +197,7 @@ namespace ArchiSteamFarm {
 				ParsePostInitArgs(args);
 			}
 
-			OS.Init(SystemRequired);
+			OS.Init(SystemRequired, GlobalConfig.OptimizationMode);
 
 			await InitGlobalDatabaseAndServices().ConfigureAwait(false);
 
@@ -323,12 +318,9 @@ namespace ArchiSteamFarm {
 				return;
 			}
 
+			// If debugging is on, we prepare debug directory prior to running
 			if (Debugging.IsUserDebugging) {
 				ASF.ArchiLogger.LogGenericDebug(SharedInfo.GlobalDatabaseFileName + ": " + JsonConvert.SerializeObject(GlobalDatabase, Formatting.Indented));
-			}
-
-			// If debugging is on, we prepare debug directory prior to running
-			if (GlobalConfig.Debug) {
 				Logging.EnableTraceLogging();
 
 				if (Directory.Exists(SharedInfo.DebugDirectory)) {

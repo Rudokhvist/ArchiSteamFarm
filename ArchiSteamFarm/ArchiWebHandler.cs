@@ -4,20 +4,20 @@
 //  / ___ \ | |  | (__ | | | || | ___) || |_|  __/| (_| || | | | | ||  _|| (_| || |   | | | | | |
 // /_/   \_\|_|   \___||_| |_||_||____/  \__|\___| \__,_||_| |_| |_||_|   \__,_||_|   |_| |_| |_|
 // 
-//  Copyright 2015-2018 Łukasz "JustArchi" Domeradzki
-//  Contact: JustArchi@JustArchi.net
+// Copyright 2015-2018 Łukasz "JustArchi" Domeradzki
+// Contact: JustArchi@JustArchi.net
 // 
-//  Licensed under the Apache License, Version 2.0 (the "License");
-//  you may not use this file except in compliance with the License.
-//  You may obtain a copy of the License at
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 // 
-//  http://www.apache.org/licenses/LICENSE-2.0
-//      
-//  Unless required by applicable law or agreed to in writing, software
-//  distributed under the License is distributed on an "AS IS" BASIS,
-//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//  See the License for the specific language governing permissions and
-//  limitations under the License.
+// http://www.apache.org/licenses/LICENSE-2.0
+// 
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 using System;
 using System.Collections.Generic;
@@ -82,6 +82,24 @@ namespace ArchiSteamFarm {
 			SessionSemaphore.Dispose();
 			TradeTokenSemaphore.Dispose();
 			WebBrowser.Dispose();
+		}
+
+		internal async Task<bool> AcceptDigitalGiftCard(ulong gid) {
+			if (gid == 0) {
+				Bot.ArchiLogger.LogNullError(nameof(gid));
+				return false;
+			}
+
+			const string request = "/gifts/0/resolvegiftcard";
+
+			// Extra entry for sessionID
+			Dictionary<string, string> data = new Dictionary<string, string>(3) {
+				{ "accept", "1" },
+				{ "giftcardid", gid.ToString() }
+			};
+
+			Steam.NumberResponse result = await UrlPostToJsonObjectWithSession<Steam.NumberResponse>(SteamStoreURL, request, data).ConfigureAwait(false);
+			return result?.Success == true;
 		}
 
 		internal async Task<bool> AcceptTradeOffer(ulong tradeID) {
@@ -444,6 +462,41 @@ namespace ArchiSteamFarm {
 
 			string request = "/mobileconf/conf?a=" + SteamID + "&k=" + WebUtility.UrlEncode(confirmationHash) + "&l=english&m=android&p=" + WebUtility.UrlEncode(deviceID) + "&t=" + time + "&tag=conf";
 			return await UrlGetToHtmlDocumentWithSession(SteamCommunityURL, request).ConfigureAwait(false);
+		}
+
+		internal async Task<HashSet<ulong>> GetDigitalGiftCards() {
+			const string request = "/gifts";
+			HtmlDocument response = await UrlGetToHtmlDocumentWithSession(SteamStoreURL, request).ConfigureAwait(false);
+			if (response == null) {
+				return null;
+			}
+
+			HtmlNodeCollection htmlNodes = response.DocumentNode.SelectNodes("//div[@class='pending_gift']/div[starts-with(@id, 'pending_gift_')][count(div[@class='pending_giftcard_leftcol']) > 0]/@id");
+			if (htmlNodes == null) {
+				return null;
+			}
+
+			HashSet<ulong> results = new HashSet<ulong>();
+			foreach (string gidText in htmlNodes.Select(node => node.GetAttributeValue("id", null))) {
+				if (string.IsNullOrEmpty(gidText)) {
+					Bot.ArchiLogger.LogNullError(nameof(gidText));
+					return null;
+				}
+
+				if (gidText.Length <= 13) {
+					Bot.ArchiLogger.LogGenericError(string.Format(Strings.ErrorIsInvalid, nameof(gidText)));
+					return null;
+				}
+
+				if (!ulong.TryParse(gidText.Substring(13), out ulong gid) || (gid == 0)) {
+					Bot.ArchiLogger.LogGenericError(string.Format(Strings.ErrorParsingObject, nameof(gid)));
+					return null;
+				}
+
+				results.Add(gid);
+			}
+
+			return results;
 		}
 
 		internal async Task<HtmlDocument> GetDiscoveryQueuePage() {
@@ -984,7 +1037,7 @@ namespace ArchiSteamFarm {
 			string sessionID = Convert.ToBase64String(Encoding.UTF8.GetBytes(steamID.ToString()));
 
 			// Generate an AES session key
-			byte[] sessionKey = SteamKit2.CryptoHelper.GenerateRandomBlock(32);
+			byte[] sessionKey = CryptoHelper.GenerateRandomBlock(32);
 
 			// RSA encrypt it with the public key for the universe we're on
 			byte[] cryptedSessionKey;
@@ -997,12 +1050,16 @@ namespace ArchiSteamFarm {
 			Array.Copy(Encoding.ASCII.GetBytes(webAPIUserNonce), loginKey, webAPIUserNonce.Length);
 
 			// AES encrypt the loginkey with our session key
-			byte[] cryptedLoginKey = SteamKit2.CryptoHelper.SymmetricEncrypt(loginKey, sessionKey);
+			byte[] cryptedLoginKey = CryptoHelper.SymmetricEncrypt(loginKey, sessionKey);
 
 			// Do the magic
 			Bot.ArchiLogger.LogGenericInfo(string.Format(Strings.LoggingIn, ISteamUserAuth));
 
-			KeyValue response = null;
+			KeyValue response;
+
+			// We do not use usual retry pattern here as webAPIUserNonce is valid only for a single request
+			// Even during timeout, webAPIUserNonce is most likely already invalid
+			// Instead, the caller is supposed to ask for new webAPIUserNonce and call Init() again on failure
 			using (dynamic iSteamUserAuth = WebAPI.GetAsyncInterface(ISteamUserAuth)) {
 				iSteamUserAuth.Timeout = WebBrowser.Timeout;
 
@@ -1020,8 +1077,10 @@ namespace ArchiSteamFarm {
 					).ConfigureAwait(false);
 				} catch (TaskCanceledException e) {
 					Bot.ArchiLogger.LogGenericDebuggingException(e);
+					return false;
 				} catch (Exception e) {
 					Bot.ArchiLogger.LogGenericWarningException(e);
+					return false;
 				}
 			}
 

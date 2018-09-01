@@ -5,14 +5,16 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
     <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
-    <script defer src="https://use.fontawesome.com/releases/v5.0.6/js/all.js"></script> <!--Change to cdnjs once available-->
+    <script defer src="https://use.fontawesome.com/releases/v5.1.0/js/all.js"></script> <!--Change to cdnjs once available-->
     <link rel="icon" href="../img/favicon.png" type="image/png">
     <link rel="shortcut icon" href="../img/favicon.ico" type="img/x-icon">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-sweetalert/1.0.1/sweetalert.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/admin-lte/2.4.3/css/AdminLTE.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/admin-lte/2.4.2/css/AdminLTE.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/slick-carousel/1.8.1/slick.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,600,700,300italic,400italic,600italic">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/3.1.0/css/flag-icon.min.css">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-toggle/2.2.2/css/bootstrap-toggle.min.css">
     <link rel="stylesheet" href="../css/_all-skins.min.css">
     <link rel="stylesheet" href="../css/app.css">
     <link rel="stylesheet" href="../css/_nightmode.min.css">
@@ -35,6 +37,11 @@
                 </a>
                 <div class="navbar-custom-menu">
                     <ul class="nav navbar-nav">
+						<!-- Language Button -->
+						<li class="dropdown">
+                            <a class="dropdown-toggle" href="javascript:void(0)" data-toggle="dropdown"><i id="currentLanguage" class="flag-icon flag-icon-us"></i></a>
+                            <div class="dropdown-menu dropdown-language"></div>
+                        </li>
                         <!-- Right Sidebar Toggle Button -->
                         <li><a href="javascript:void(0)" data-toggle="control-sidebar"><i class="fas fa-cogs"></i></a></li>
                     </ul>
@@ -53,6 +60,7 @@
                             <i class="fas fa-users fa-fw"></i> <span data-i18n="global-bots">Bots</span>
                             <span class="pull-right-container bot-status">
                                 <small class="label pull-right bg-gray" id="offlineBots">0</small>
+								<small class="label pull-right bg-red" id="disconnectedBots" style="display:none;">0</small>
                                 <small class="label pull-right bg-yellow" id="onlineBots">0</small>
                                 <small class="label pull-right bg-olive" id="farmingBots">0</small>
                             </span>
@@ -65,16 +73,16 @@
                     <li><a href="generator.html"><i class="far fa-copy fa-fw"></i> <span data-i18n="global-generator">Generator</span></a></li>
 
                     <li class="header" data-i18n="global-information">Information</li>
-                    <li class="info-overview">
-                        <a>
+                    <li>
+                        <a class="info-overview" href="javascript:void(0)">
                             <i class="fas fa-tachometer-alt fa-fw"></i> <span data-i18n="global-ram-usage">RAM Usage</span>
                             <span class="pull-right-container">
                                 <small class="label pull-right bg-blue" id="ramUsage">0.00 MB</small>
                             </span>
                         </a>
                     </li>
-                    <li class="info-overview">
-                        <a>
+                    <li>
+						<a class="info-overview" href="javascript:void(0)">
                             <i class="far fa-clock fa-fw"></i> <span data-i18n="global-uptime">Uptime</span>
                             <span class="pull-right-container">
                                 <small class="label pull-right bg-blue" id="uptime">0d 0h 0m</small>
@@ -109,22 +117,16 @@
                                 <button type="button" class="btn btn-box-tool dropdown-toggle" data-toggle="dropdown">
                                     <span data-i18n="bots-hide">Hide bots</span> <span class="fas fa-caret-down"></span>
                                 </button>
-                                <ul class="dropdown-menu" role="menu">
-                                    <li><button data-i18n="title-bots-online" title="Toggle online bots" type="button" class="btn btn-box-tool text-grey" id="chkHideOnlineBots"><i id="iconHideOnlineBots" class="fas fa-toggle-on fa-2x fa-rotate-180"></i></button><span data-i18n="bots-hide-online">Online bots</span></li>
-                                    <li><button data-i18n="title-bots-offline" title="Toggle offline bots" type="button" class="btn btn-box-tool text-grey" id="chkHideOfflineBots"><i id="iconHideOfflineBots" class="fas fa-toggle-on fa-2x fa-rotate-180"></i></button><span data-i18n="bots-hide-offline">Offline bots</span></li>
+                                <ul class="dropdown-menu dropdown-menu-toggle" role="menu">
+									<li class="li-toggle"><input id="chkOn" type="checkbox" data-style="ios li-btn" data-onstyle="default" data-toggle="toggle" data-size="small" data-on="<i class='fas fa-users'></i> <span data-i18n='bots-hide-online'>Online bots</span>" data-off="<i class='fas fa-users'></i> <span data-i18n='bots-hide-online'>Online bots</span>"></li>
+									<li class="li-toggle"><input id="chkInactive" type="checkbox" data-style="ios li-btn" data-onstyle="default" data-toggle="toggle" data-size="small" data-on="<i class='fas fa-users'></i> <span data-i18n='bots-hide-inactive'>Inactive bots</span>" data-off="<i class='fas fa-users'></i> <span data-i18n='bots-hide-inactive'>Inactive bots</span>"></li>
+                                    <li class="li-toggle"><input id="chkOff" type="checkbox" data-style="ios li-btn" data-onstyle="default" data-toggle="toggle" data-size="small" data-on="<i class='fas fa-users'></i> <span data-i18n='bots-hide-offline'>Offline bots</span>" data-off="<i class='fas fa-users'></i> <span data-i18n='bots-hide-offline'>Offline bots</span>"></li>
                                 </ul>
-                            </div>
-                            <button data-i18n="title-bots-refresh" title="Refresh content" type="button" class="btn btn-box-tool" id="btnRefreshContent"><i class="fas fa-sync"></i></button>
-                            <div class="btn-group">
-                                <button type="button" class="btn btn-box-tool dropdown-toggle" data-toggle="dropdown">
-                                    <i class="fas fa-wrench"></i>
-                                </button>
-                                <ul class="dropdown-menu" role="menu">
-                                    <li><button data-i18n="title-bots-key" title="Toggle key button" type="button" class="btn btn-box-tool text-grey" id="chkShowKeyButton"><i id="iconShowKeyButton" class="fas fa-toggle-on fa-2x fa-rotate-180"></i></button><span data-i18n="bots-key">Show key button</span></li>
-                                    <li><button data-i18n="title-bots-delete" title="Toggle delete button" type="button" class="btn btn-box-tool text-grey" id="chkShowDeleteButton"><i id="iconShowDeleteButton" class="fas fa-toggle-on fa-2x fa-rotate-180"></i></button><span data-i18n="bots-delete">Show delete button</span></li>
-                                    <li><button data-i18n="title-bots-simple" title="Toggle simple farming info" type="button" class="btn btn-box-tool text-grey" id="chkSimpleFarmingInfo"><i id="iconSimpleFarmingInfo" class="fas fa-toggle-on fa-2x fa-rotate-180"></i></button><span data-i18n="bots-simple">Simple farming info</span></li>
-                                </ul>
-                            </div>
+                            </div>							
+							<input id="chkKey" type="checkbox" data-style="ios" data-onstyle="default" data-toggle="toggle" data-size="mini" data-on="<i class='fas fa-key'></i>" data-off="<i class='fas fa-key'></i>">
+							<input id="chkDelete" type="checkbox" data-style="ios" data-onstyle="default" data-toggle="toggle" data-size="mini" data-on="<i class='far fa-trash-alt'></i>" data-off="<i class='far fa-trash-alt'></i>">
+							<input id="chkSimple" type="checkbox" data-style="ios" data-onstyle="default" data-toggle="toggle" data-size="mini" data-on="<i class='fas fa-info'></i>" data-off="<i class='fas fa-info'></i>">
+                            <button type="button" class="btn btn-box-tool" id="btnRefresh"><i class="fas fa-sync"></i></button>
                         </div>
                     </div>
                 </div>
@@ -155,7 +157,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-sweetalert/1.0.1/sweetalert.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/admin-lte/2.4.3/js/adminlte.min.js"></script>
+	<script src="../js/adminlte.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/slick-carousel/1.8.1/slick.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/humanize-duration/3.12.1/humanize-duration.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.20.1/moment.min.js"></script>
@@ -166,6 +168,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.i18n/1.0.4/jquery.i18n.parser.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.i18n/1.0.4/jquery.i18n.emitter.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.i18n/1.0.4/jquery.i18n.emitter.bidi.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-toggle/2.2.2/js/bootstrap-toggle.min.js"></script>
     <script src="../js/utils.js"></script>
     <script src="../js/i18n.js"></script>
     <script src="../js/app.js"></script>
@@ -175,14 +178,14 @@
 
             store('CurrentPage', 'pages/bots.html');
 
-            var tmpHideOnlineBots = get('hideOnlineBots'),
-                tmpHideOfflineBots = get('hideOfflineBots'),
-                tmpShowDeleteButton = get('showDeleteButton'),
-                tmpShowKeyButton = get('showKeyButton'),
-                tmpSimpleFarmingInfo = get('simpleFarmingInfo'),
-                currentlySelectedBots = [];
+            var tmpHideOnlineBots = get('chkOn'),
+				tmpHideInactiveBots = get('chkInactive'),
+                tmpHideOfflineBots = get('chkOff'),
+                tmpShowKeyButton = get('chkKey'),
+                tmpShowDeleteButton = get('chkDelete'),
+                tmpSimpleFarmingInfo = get('chkSimple');
 
-            $(document).delegate('#gamesToRedeemInBackground', 'keydown', function (e) {
+            $(document).delegate('#txtAddKeys, #delimiter', 'keydown', function (e) {
                 var keyCode = e.keyCode || e.which;
 
                 if (keyCode == 9) {
@@ -191,180 +194,65 @@
                     var start = this.selectionStart;
                     var end = this.selectionEnd;
                     
-                    $(this).val($(this).val().substring(0, start) // set textarea value to: text before caret + tab + text after caret
-                        + "\t"
-                        + $(this).val().substring(end));
-                    
-                    this.selectionStart = this.selectionEnd = start + 1; // put caret at right position again
-                }
-            });
-
-            $(document).delegate('#delimeter', 'keydown', function (e) {
-                var keyCode = e.keyCode || e.which;
-
-                if (keyCode == 9) {
-                    e.preventDefault();
-                    e.stopImmediatePropagation();
-                    var start = this.selectionStart;
-                    var end = this.selectionEnd;
-                    
-                    $(this).val($(this).val().substring(0, start) // set textarea value to: text before caret + tab + text after caret
-                        + "\t"
-                        + $(this).val().substring(end));
+                    $(this).val($(this).val().substring(0, start) + "\t" + $(this).val().substring(end)); // set textarea value to: text before caret + tab + text after caret
                     
                     this.selectionStart = this.selectionEnd = start + 1; // put caret at right position again
                 }
             });
             
-            $('.box-tools').ready(function () { // Load state of checkboxes
-                if (tmpHideOnlineBots === 'true') {
-                    $('#chkHideOnlineBots').removeClass('text-grey');
-                    $('#chkHideOnlineBots').addClass('text-olive');
-                    $('#iconHideOnlineBots').removeClass('fa-rotate-180');
-                }
+            $('.box-tools').ready(function () {
+                if (tmpHideOnlineBots === 'true') $('#chkOn').bootstrapToggle('on');
+				if (tmpHideInactiveBots === 'true') $('#chkInactive').bootstrapToggle('on');
+                if (tmpHideOfflineBots === 'true') $('#chkOff').bootstrapToggle('on');
 
-                if (tmpHideOfflineBots === 'true') {
-                    $('#chkHideOfflineBots').removeClass('text-grey');
-                    $('#chkHideOfflineBots').addClass('text-olive');
-                    $('#iconHideOfflineBots').removeClass('fa-rotate-180');
-                }
+                if (tmpHideOnlineBots !== 'true' || tmpHideInactiveBots !== 'true' || tmpHideOfflineBots !== 'true') loadPageContent();
 
-                if (tmpHideOnlineBots !== 'true' || tmpHideOfflineBots !== 'true') loadPageContent();
-
-                if (tmpShowDeleteButton === 'true') {
-                    $('#chkShowDeleteButton').removeClass('text-grey');
-                    $('#chkShowDeleteButton').addClass('text-olive');
-                    $('#iconShowDeleteButton').removeClass('fa-rotate-180');
-                }
-
-                if (tmpShowKeyButton === 'true') {
-                    $('#chkShowKeyButton').removeClass('text-grey');
-                    $('#chkShowKeyButton').addClass('text-olive');
-                    $('#iconShowKeyButton').removeClass('fa-rotate-180');
-                }
-
-                if (tmpShowKeyButton === 'true') {
-                    $('#chkShowKeyButton').removeClass('text-grey');
-                    $('#chkShowKeyButton').addClass('text-olive');
-                    $('#iconShowKeyButton').removeClass('fa-rotate-180');
-                }
-
-                if (tmpSimpleFarmingInfo === 'true') {
-                    $('#chkSimpleFarmingInfo').removeClass('text-grey');
-                    $('#chkSimpleFarmingInfo').addClass('text-olive');
-                    $('#iconSimpleFarmingInfo').removeClass('fa-rotate-180');
-                }
-            });
-
-            $('#chkSimpleFarmingInfo').click(function () {
-                if ($('#iconSimpleFarmingInfo').hasClass('fa-rotate-180')) {
-                    $('#iconSimpleFarmingInfo').removeClass('fa-rotate-180');
-                    $('#chkSimpleFarmingInfo').removeClass('text-grey');
-                    $('#chkSimpleFarmingInfo').addClass('text-olive');
-                    store('simpleFarmingInfo', true);
-                } else {
-                    $('#iconSimpleFarmingInfo').addClass('fa-rotate-180');
-                    $('#chkSimpleFarmingInfo').removeClass('text-olive');
-                    $('#chkSimpleFarmingInfo').addClass('text-grey');
-                    store('simpleFarmingInfo', false);
-                }
-                loadPageContent();
-            });
-
-            $('#chkHideOnlineBots').click(function () {
-                if ($('#iconHideOnlineBots').hasClass('fa-rotate-180')) {
-                    $('#iconHideOnlineBots').removeClass('fa-rotate-180');
-                    $('#chkHideOnlineBots').removeClass('text-grey');
-                    $('#chkHideOnlineBots').addClass('text-olive');
-                    store('hideOnlineBots', true);
-                } else {
-                    $('#iconHideOnlineBots').addClass('fa-rotate-180');
-                    $('#chkHideOnlineBots').removeClass('text-olive');
-                    $('#chkHideOnlineBots').addClass('text-grey');
-                    store('hideOnlineBots', false);
-                }
-                loadPageContent();
-            });
-
-            $('#chkHideOfflineBots').click(function () {
-                if ($('#iconHideOfflineBots').hasClass('fa-rotate-180')) {
-                    $('#iconHideOfflineBots').removeClass('fa-rotate-180');
-                    $('#chkHideOfflineBots').removeClass('text-grey');
-                    $('#chkHideOfflineBots').addClass('text-olive');
-                    store('hideOfflineBots', true);
-                } else {
-                    $('#iconHideOfflineBots').addClass('fa-rotate-180');
-                    $('#chkHideOfflineBots').removeClass('text-olive');
-                    $('#chkHideOfflineBots').addClass('text-grey');
-                    store('hideOfflineBots', false);
-                }
-                loadPageContent();
-            });
-
-            $('#btnRefreshContent').click(function () {
-                $('#btnRefreshContent').blur();
-                loadPageContent();
-            });
-
-            $('#chkShowDeleteButton').click(function () {
-                if ($('#iconShowDeleteButton').hasClass('fa-rotate-180')) {
-                    $('#iconShowDeleteButton').removeClass('fa-rotate-180');
-                    $('#chkShowDeleteButton').removeClass('text-grey');
-                    $('#chkShowDeleteButton').addClass('text-olive');
-                    store('showDeleteButton', true);
-                } else {
-                    $('#iconShowDeleteButton').addClass('fa-rotate-180');
-                    $('#chkShowDeleteButton').removeClass('text-olive');
-                    $('#chkShowDeleteButton').addClass('text-grey');
-                    store('showDeleteButton', false);
-                }
-                loadPageContent();
-            });
-
-            $('#chkShowKeyButton').click(function () {
-                if ($('#iconShowKeyButton').hasClass('fa-rotate-180')) {
-                    $('#iconShowKeyButton').removeClass('fa-rotate-180');
-                    $('#chkShowKeyButton').removeClass('text-grey');
-                    $('#chkShowKeyButton').addClass('text-olive');
-                    store('showKeyButton', true);
-                } else {
-                    $('#iconShowKeyButton').addClass('fa-rotate-180');
-                    $('#chkShowKeyButton').removeClass('text-olive');
-                    $('#chkShowKeyButton').addClass('text-grey');
-                    store('showKeyButton', false);
-                }
-                loadPageContent();
+				if (tmpShowKeyButton === 'true') $('#chkKey').bootstrapToggle('on');
+                if (tmpShowDeleteButton === 'true') $('#chkDelete').bootstrapToggle('on');
+                if (tmpSimpleFarmingInfo === 'true') $('#chkSimple').bootstrapToggle('on');
+				
+				$('#chkOn, #chkInactive, #chkOff, #chkKey, #chkDelete, #chkSimple').change(function() {
+					store($(this).attr('id'), $(this).prop('checked'));
+					loadPageContent();
+				});
+				
+				$('#btnRefresh').click(function () {
+					$('#btnRefresh').blur();
+					loadPageContent();
+				});
             });
 
             function loadPageContent() {
-                var tmpHideOnlineBots = get('hideOnlineBots'),
-                    tmpHideOfflineBots = get('hideOfflineBots'),
-                    tmpShowDeleteButton = get('showDeleteButton'),
-                    tmpDelimeter = get('delimeter'),
-                    tmpShowKeyButton = get('showKeyButton'),
-                    tmpSimpleFarmingInfo = get('simpleFarmingInfo');
+                var tmpHideOnlineBots = get('chkOn'),
+					tmpHideInactiveBots = get('chkInactive'),
+                    tmpHideOfflineBots = get('chkOff'),
+                    tmpShowKeyButton = get('chkKey'),
+                    tmpShowDeleteButton = get('chkDelete'),
+                    tmpSimpleFarmingInfo = get('chkSimple'),
+                    tmpDelimiter = get('delimiter');
                 
-                $('#totalBotOverview').empty(); // Clear page content
-                $('#botRow').empty(); // Clear page content
+                $('#totalBotOverview').empty();
+                $('#botRow').empty();
 
-                if (!tmpDelimeter) {
-                    tmpDelimeter = '\t';
+                if (!tmpDelimiter) {
+                    tmpDelimiter = '\t';
                 }
 
                 $.ajax({
                     url: '/Api/Bot/ASF',
                     type: 'GET',
                     success: function (data) {
-                        var json = data['Result'],
+                        var json = data.Result,
                             steamAvatarBaseURL = 'https://steamcdn-a.akamaihd.net/steamcommunity/public/images/avatars/',
-                            steamGameBaseURL = 'http://cdn.edgecast.steamstatic.com/steam/apps/',
+							steamAvatarDefault = 'fe/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb.jpg',
+                            steamGameBaseURL = 'https://steamcdn-a.akamaihd.net/steam/apps/',
                             totalGamesRemaining = 0,
-                            totalTimeRemaining = '00:00:00',
+                            totalTimeRemaining = 0,
                             totalCardsRemaining = 0,
                             farmingIsActive = false;
 
-                        var deleteBotHTML = tmpShowDeleteButton === 'true' ? '<button data-i18n="title-bots-delete-this" title="Delete this bot" type="button" class="btn btn-box-tool" data-command="deleteBot"><i class="far fa-trash-alt"></i></button>' : '';
-                        var redeemGamesHTML = tmpShowKeyButton === 'true' ? '<button data-i18n="title-bots-games" title="Add keys to GamesToRedeemInBackground" type="button" class="btn btn-box-tool" data-command="redeemGames"><i class="fas fa-key"></i></button>' : '';
+                        var deleteBotHTML = tmpShowDeleteButton === 'true' ? '<button type="button" class="btn btn-box-tool" data-command="deleteBot"><i class="far fa-trash-alt"></i></button>' : '';
+                        var bgrHTML = tmpShowKeyButton === 'true' ? '<button type="button" class="btn btn-box-tool" data-command="BGR"><i class="fas fa-key"></i></button>' : '';
 
                         for (var i = 0; i < json.length; i++) {
                             var obj = json[i],
@@ -387,7 +275,7 @@
                                 var folder = AvatarHash.substring(0, 2);
                                 avatarHTML = steamAvatarBaseURL + folder + '/' + AvatarHash + '.jpg';
                             } else {
-                                avatarHTML = steamAvatarBaseURL + 'fe/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb.jpg';
+                                avatarHTML = steamAvatarBaseURL + steamAvatarDefault;
                             }
 							
 							profileHTML = '<img src="' + avatarHTML + '">';
@@ -395,13 +283,13 @@
                             if (KeepRunning === false) { // Bot is offline
                                 if (tmpHideOfflineBots === 'true') continue;
                                 boxColorHTML = 'box-gray';
-                                startOrStopHTML = '<button title="Start <' + BotName + '>" type="button" class="btn btn-box-tool bot-stopped" data-command="startBot"><i class="fas fa-power-off"></i></button>';
-                            } else { // Bot is idling
+                                startOrStopHTML = '<button type="button" class="btn btn-box-tool bot-stopped" data-command="startBot"><i class="fas fa-power-off"></i></button>';
+                            } else { // Bot is online
                                 if (tmpHideOnlineBots === 'true') continue;
                                 boxColorHTML = 'box-warning';
-                                startOrStopHTML = '<button title="Stop <' + BotName + '>" type="button" class="btn btn-box-tool bot-started" data-command="stopBot"><i class="fas fa-power-off"></i></button>';
+                                startOrStopHTML = '<button type="button" class="btn btn-box-tool bot-started" data-command="stopBot"><i class="fas fa-power-off"></i></button>';
 
-                                var TimeRemaining = obj.CardsFarmer.TimeRemaining;
+                                var TimeRemaining = moment.duration(obj.CardsFarmer.TimeRemaining).asMilliseconds();
 
                                 if (SteamID === 0) { // Bot is not connected to steam
                                     boxColorHTML = 'box-danger';
@@ -410,7 +298,7 @@
                                         + '<img src="' + avatarHTML + '">'
                                         + '</a>';
 
-                                    if (TimeRemaining !== '00:00:00') { // Bot is farming
+                                    if (TimeRemaining !== 0) { // Bot is farming
                                         var GamesToFarm = obj.CardsFarmer.GamesToFarm,
                                             CurrentGamesFarming = obj.CardsFarmer.CurrentGamesFarming,
                                             allGamesFarmingAppID = [],
@@ -434,7 +322,7 @@
 
                                         totalGamesRemaining += GamesToFarm.length;
 
-                                        expandBoxHTML = '<button data-i18n="title-bots-more" title="Show more infos" type="button" class="btn btn-box-tool" data-widget="collapse" id="collapse-trigger"><i class="fas fa-plus"></i></button>'
+                                        expandBoxHTML = '<button type="button" class="btn btn-box-tool" data-widget="collapse" id="collapse-trigger"><i class="fas fa-plus"></i></button>';
 
                                         if (IsPlayingPossible) {
                                             if (Paused) {
@@ -462,9 +350,7 @@
                                             allGamesHTML = '<p class="text-center no-margin">' + $.i18n('bots-in-use') + '</p>';
                                         }
 
-                                        TimeRemaining = moment.duration(TimeRemaining).asMilliseconds();
-
-                                        boxBodyHTML = '<div class="box-body" id="' + BotName + '">'
+                                        boxBodyHTML = '<div class="box-body" id="' + BotName + '" style="display:none;">'
                                             + '<div class="row">'
                                             + '<div class="col-lg-8 col-md-8 col-sm-8 col-xs-8">'
                                             + '<span class="pull-left"><i class="far fa-clock"></i> ' + humanizeDuration(TimeRemaining) + '</span>'
@@ -474,31 +360,33 @@
                                             + '</div>'
                                             + '</div>'
                                             + allGamesHTML
-                                            + '</div>'
-                                    }
+                                            + '</div>';
+                                    } else { // Bot is inactive
+										if (tmpHideInactiveBots === 'true') continue;
+									}
                                 }
 
                                 if (Paused) {
-                                    pauseOrResumeHTML = '<button title="Resume <' + BotName + '>" type="button" class="btn btn-box-tool bot-paused" data-command="resumeBot"><i class="fas fa-pause"></i></button>';
+                                    pauseOrResumeHTML = '<button type="button" class="btn btn-box-tool bot-paused" data-command="resumeBot"><i class="fas fa-pause"></i></button>';
                                 } else {
-                                    pauseOrResumeHTML = '<button title="Pause <' + BotName + '>" type="button" class="btn btn-box-tool bot-resumed" data-command="pauseBot"><i class="fas fa-pause"></i></button>';
+                                    pauseOrResumeHTML = '<button type="button" class="btn btn-box-tool bot-resumed" data-command="pauseBot"><i class="fas fa-pause"></i></button>';
                                 }
                             }
 
                             $('#botRow').append('<div class="col-lg-3 col-md-4 col-sm-6 col-xs-12">'
                                 + '<div class="box ' + boxColorHTML + ' collapsed-box" id="bot-box-' + BotName + '">'
-                                + '<div class="box-header with-border botHeader ui-widget-content">'
+                                + '<div class="box-header with-border botHeader">'
 								+ profileHTML
                                 + '<h3 class="box-title botTitle">' + BotName + '</h3>'
                                 + '<div class="box-tools pull-right botTools" id="' + BotName + '">'
                                 + startOrStopHTML
                                 + pauseOrResumeHTML
-                                + redeemGamesHTML
+                                + bgrHTML
                                 + deleteBotHTML
                                 + expandBoxHTML
                                 + '</div>'
-                                + boxBodyHTML
                                 + '</div>'
+                                + boxBodyHTML
                                 + '</div>'
                                 + '</div>');
 
@@ -631,38 +519,59 @@
                                         });
                                         break;
 
-                                    case 'redeemGames':
+                                    case 'BGR':
+										var bgrHTML = '<div class="nav-tabs-custom">'
+														+ '<ul class="nav nav-tabs nav-justified">'
+															+ '<li class="active"><a href="#addKeys" data-toggle="tab" aria-expanded="true">' + $.i18n('bots-redeem-add-title') + '</a></li>'
+															+ '<li class=""><a href="#unusedKeys" data-toggle="tab" aria-expanded="false">' + $.i18n('bots-redeem-unused-title') + '</a></li>'
+															+ '<li class=""><a href="#usedKeys" data-toggle="tab" aria-expanded="false">' + $.i18n('bots-redeem-used-title') + '</a></li>'
+														+ '</ul>'
+														+ '<div class="tab-content">'
+															+ '<div class="tab-pane active" id="addKeys">'
+																+ '<p class="lead text-muted" style="display: block;">' + $.i18n('bots-syntax') + '</p>'
+																+ '<textarea id="txtAddKeys"></textarea>'
+																+ '<div class="input-group">'
+																+ '<span class="input-group-addon" id="delimiter-text">' + $.i18n('bots-delimiter') + '</span>'
+																+ '<input type="text" class="form-control" id="delimiter" value="' + tmpDelimiter + '" aria-describedby="delimiter-text">'
+																+ '</div>'
+															+ '</div>'
+															+ '<div class="tab-pane" id="unusedKeys">'
+																+ '<textarea id="txtUnusedKeys"></textarea>'
+															+ '</div>'
+															+ '<div class="tab-pane" id="usedKeys">'
+																+ '<textarea id="txtUsedKeys"></textarea>'
+															+ '</div>'
+														+ '</div>'
+													+ '</div>';
+										
                                         swal({
                                             title: $.i18n('bots-redeem-title'),
-                                            text: '<p class="lead text-muted" style="display: block;">' + $.i18n('bots-syntax') + '</p>'
-                                            + '<textarea id="gamesToRedeemInBackground"></textarea>'
-                                            + '<div class="input-group">'
-                                            + '<span class="input-group-addon" id="delimeter-text">' + $.i18n('bots-delimeter') + '</span>'
-                                            + '<input type="text" class="form-control" id="delimeter" value="' + tmpDelimeter + '" aria-describedby="delimeter-text">'
-                                            + '</div>',
+                                            text: bgrHTML,
                                             html: true,
                                             customClass: 'swal-wide',
                                             showCancelButton: true,
                                             confirmButtonClass: 'btn-success',
-                                            confirmButtonText: $.i18n('bots-redeem-button'),
+                                            confirmButtonText: $.i18n('bots-redeem-add-button'),
                                             closeOnConfirm: false,
                                             showLoaderOnConfirm: true
                                         }, function (isConfirm) {
                                             if (isConfirm === false) {
+	                                            $("#downloadUnusedKeysBtn").remove();
+												$("#downloadUsedKeysBtn").remove();
                                                 $('.overlay').remove();
                                                 return false;
                                             }
-                                            var val = $('#gamesToRedeemInBackground').val();
+                                            var val = $('#txtAddKeys').val();
 
                                             var _gamesToRedeemInBackground = {},
                                                 gamesAndKeys = [],
                                                 lines = val.split('\n'),
-                                                currentDelimeter = $('#delimeter').val();
+                                                currentDelimiter = $('#delimiter').val();
 
-                                            store('delimeter', currentDelimeter);
+                                            store('delimiter', currentDelimiter);
 
                                             for (var i = 0; i < lines.length; i++) {
-                                                if (lines[i] !== '') gamesAndKeys.push(lines[i].split(currentDelimeter));
+                                                if (lines[i] !== '') gamesAndKeys.push(lines[i].split(currentDelimiter));
                                             }
 
                                             for (var j = 0; j < gamesAndKeys.length; j++) {
@@ -678,7 +587,7 @@
                                                 data: JSON.stringify(ajaxData, null, "\t"),
                                                 contentType: 'application/json',
                                                 success: function (data) {
-                                                    var obj = data['Result'],
+                                                    var obj = data.Result,
                                                         gamesAdded = Object.keys(obj).length;
 
                                                     swal({
@@ -690,7 +599,7 @@
                                                 error: function (jqXHR, textStatus, errorThrown) {
                                                     swal({
                                                         title: $.i18n('global-error-title'),
-                                                        text: jqXHR.status + ' ' + errorThrown + ' - ' + jqXHR.responseJSON['Message'],
+                                                        text: jqXHR.status + ' ' + errorThrown + ' - ' + jqXHR.responseJSON.Message,
                                                         type: 'error'
                                                     }, function () { location.reload(); });
                                                 }
@@ -698,9 +607,99 @@
 
                                             $('.overlay').remove();
                                         });
+										
+										$('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+										  var target = $(e.target).attr("href");
+										  
+										  if (target === '#unusedKeys') {
+											$("#downloadUnusedKeysBtn").remove();
+											$("#downloadUsedKeysBtn").remove();
+											$(".confirm").hide();
+											$(".sa-button-container").append('<div id="downloadUnusedKeysBtn" class="sa-confirm-button-container">'
+												+ '<button class="confirm btn btn-lg btn-success" id="downloadUnusedKeys" tabindex="1" style="display: inline-block;">'
+												+ $.i18n('bots-redeem-unused-button', BotName) + '</button>'
+												+ '</div>');
+											$('#downloadUnusedKeys').on('click', function (e) {
+												e.preventDefault();
+												var unusedText = $('#txtUnusedKeys').val();
+												if (unusedText === '') {
+													$("#downloadUnusedKeysBtn").remove();
+													swal({
+														title: $.i18n('global-error-title'),
+														text: $.i18n('bots-download'),
+														type: 'error'
+													});
+													$('.overlay').remove();
+													return false;
+												}
+												download(BotName + '.keys.unused', unusedText);
+											});
+											$.ajax({
+                                                url: '/Api/GamesToRedeemInBackground/' + encodeURIComponent(BotName),
+                                                type: 'GET',
+                                                success: function (data) {
+                                                    var obj = data.Result,
+														unusedKeys = obj[BotName].UnusedKeys;
+														
+													for (var key in unusedKeys) {
+														if (unusedKeys.hasOwnProperty(key)) {
+															$('#txtUnusedKeys').append(unusedKeys[key] + tmpDelimiter + key + '\n');
+														}
+													}
+													
+													var allKeys = $('#txtUnusedKeys').val();
+													$('#txtUnusedKeys').val(allKeys.substring(0,allKeys.length-1));
+                                                }
+                                            });
+										  } else if (target === '#usedKeys') {
+											$("#downloadUnusedKeysBtn").remove();
+											$("#downloadUsedKeysBtn").remove();
+											$(".confirm").hide();
+											$(".sa-button-container").append('<div id="downloadUsedKeysBtn" class="sa-confirm-button-container">'
+												+ '<button class="confirm btn btn-lg btn-success" id="downloadUsedKeys" tabindex="1" style="display: inline-block;">'
+												+ $.i18n('bots-redeem-used-button', BotName) + '</button>'
+												+ '</div>');
+											$('#downloadUsedKeys').on('click', function (e) {
+												e.preventDefault();
+												var usedText = $('#txtUsedKeys').val();
+												if (usedText === '') {
+													$("#downloadUsedKeysBtn").remove();
+													swal({
+														title: $.i18n('global-error-title'),
+														text: $.i18n('bots-download'),
+														type: 'error'
+													});
+													$('.overlay').remove();
+													return false;
+												}
+												download(BotName + '.keys.used', usedText);
+											});
+											$.ajax({
+                                                url: '/Api/GamesToRedeemInBackground/' + encodeURIComponent(BotName),
+                                                type: 'GET',
+                                                success: function (data) {
+                                                    var obj = data.Result,
+														usedKeys = obj[BotName].UsedKeys;
+														
+													for (var key in usedKeys) {
+														if (usedKeys.hasOwnProperty(key)) {
+															$('#txtUsedKeys').append(usedKeys[key] + tmpDelimiter + key + '\n');
+														}
+													}
+													
+													var allKeys = $('#txtUsedKeys').val();
+													$('#txtUsedKeys').val(allKeys.substring(0,allKeys.length-1));
+                                                }
+                                            });
+										  } else if (target === '#addKeys') {
+											$("#downloadUnusedKeysBtn").remove();
+											$("#downloadUsedKeysBtn").remove();
+											$(".confirm").show();
+										  }
+										});
                                         break;
                                 }
-                            })
+                            });
                         }
 
                         if (farmingIsActive) { // Add info boxes if at least one bot is farming
@@ -732,8 +731,6 @@
                                 + '</div>'
                                 + '</div>');
 
-                            totalTimeRemaining = moment.duration(totalTimeRemaining).asMilliseconds();
-
                             $('#totalGamesRemaining').text(totalGamesRemaining);
                             $('#totalTimeRemaining').text(humanizeDuration(totalTimeRemaining));
                             $('#totalCardsRemaining').text(totalCardsRemaining);
@@ -741,7 +738,17 @@
                     }
                 });
             }
-        })
+			
+			function download(filename, text) {
+				var element = document.createElement('a');
+				element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+				element.setAttribute('download', filename);
+				element.style.display = 'none';
+				document.body.appendChild(element);
+				element.click();
+				document.body.removeChild(element);
+			}
+        });
     </script>
 </body>
 </html>

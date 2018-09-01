@@ -1,5 +1,6 @@
-//#region Setup
-const tmpIPCPassword = get('IPCPassword');
+//{#region Setup
+const tmpIPCPassword = get('IPCPassword'),
+	  vGUI = '0.4';
 
 if (tmpIPCPassword) {
     $.ajaxSetup({
@@ -23,25 +24,27 @@ $.ajaxSetup({
         }
     }
 });
-//#endregion Setup
+//}#endregion Setup
 
-//#region Footer
+//{#region Footer
 $.ajax({
     url: '/Api/ASF',
     type: 'GET',
     success: function (data) {
-        var ver = data['Result'].Version,
-            verNr = ver.Major + '.' + ver.Minor + '.' + ver.Build + '.' + ver.Revision;
+        var v = data.Result.Version,
+			vNr = v.Major + '.' + v.Minor + '.' + v.Build + '.' + v.Revision,
+			build = data.Result.BuildVariant;
             
-        $('#version').text(verNr);
-        $('#changelog').attr('href', 'https://github.com/JustArchi/ArchiSteamFarm/releases/tag/' + verNr);
+        $('#version').text(vNr + ' - ' + build + ' - ' + vGUI);
+        $('#changelog').attr('href', 'https://github.com/JustArchi/ArchiSteamFarm/releases/tag/' + vNr);
     }
 });
-//#endregion Footer
+//}#endregion Footer
 
-//#region Bot Status Buttons
+//{#region Bots Status Buttons
 function displayBotStatus() {
     var offline = 0,
+		disconnected = 0,
         online = 0,
         farming = 0;
 
@@ -49,25 +52,37 @@ function displayBotStatus() {
         url: '/Api/Bot/ASF',
         type: 'GET',
         success: function (data) {
-            var json = data['Result'];
+            var json = data.Result;
 
             for (var i = 0; i < json.length; i++) {
                 var obj = json[i],
                     KeepRunning = obj.KeepRunning,
-                    TimeRemaining = obj.CardsFarmer.TimeRemaining;
+                    TimeRemaining = obj.CardsFarmer.TimeRemaining,
+					SteamID = obj.SteamID;
 
                 if (KeepRunning === false) {
                     offline++;
                 } else {
-                    if (TimeRemaining === '00:00:00') {
-                        online++;
-                    } else {
-                        farming++;
-                    }
+			if (SteamID === 0) {
+				disconnected++;
+			} else {
+				if (TimeRemaining === '00:00:00') {
+					online++;
+				}
+				else {
+					farming++;
+				}
+			}
                 }
             }
 
             $('#offlineBots').text(offline);
+			if (disconnected > 0) {
+				$('#disconnectedBots').show();
+				$('#disconnectedBots').text(disconnected);
+			} else {
+				$('#disconnectedBots').hide();
+			}
             $('#onlineBots').text(online);
             $('#farmingBots').text(farming);
         }
@@ -76,15 +91,15 @@ function displayBotStatus() {
 
 displayBotStatus();
 window.setInterval(function () { displayBotStatus(); }, 5000);
-//#endregion Bot Status Buttons
+//}#endregion Bots Status Buttons
 
-//#region ASF Information
+//{#region Information
 function displayRAMUsage() {
     $.ajax({
         url: '/Api/ASF',
         type: 'GET',
         success: function (data) {
-            var mem = data['Result'].MemoryUsage,
+            var mem = data.Result.MemoryUsage,
                 memMB = (mem / 1024).toFixed(2);
 
             $('#ramUsage').html(memMB + ' MB');
@@ -100,7 +115,7 @@ function displayUptime() {
         url: '/Api/ASF',
         type: 'GET',
         success: function (data) {
-            var pst = data['Result'].ProcessStartTime,
+            var pst = data.Result.ProcessStartTime,
                 start = new Date(pst),
                 now = new Date(),
                 diff = now.getTime() - start.getTime();
@@ -125,12 +140,10 @@ function displayUptime() {
 
 displayUptime();
 window.setInterval(function () { displayUptime(); }, 60000);
-//#endregion ASF Information
+//}#endregion Information
 
-//#region Commands Page
+//{#region Commands
 var $cmdInput = $('#commandInput');
-function fillCommand(cmd) { $cmdInput.val(cmd + ' '); }
-function fillBots(bot) { $cmdInput.val($cmdInput.val() + bot); }
 
 function getDateAndTime() {
     var date = new Date();
@@ -143,7 +156,7 @@ function getDateAndTime() {
 }
 
 function logCommand(state, cmd) {
-    var tmpAutoClear = get('autoClear');
+    var tmpAutoClear = get('chkClear');
 
     if (state) {
         $('#commandSent').val($.i18n('commands-sent', getDateAndTime(), cmd));
@@ -162,8 +175,8 @@ function logCommand(state, cmd) {
 
 function sendCommand() {
     var command = $cmdInput.val(),
-        requestURL = '/Api/Command/' + encodeURIComponent(command), 
-        tmpAutoClear = get('autoClear');
+        requestURL = '/Api/Command/' + encodeURIComponent(command),
+        tmpAutoClear = get('chkClear');
 
     if (command === '') return;
 
@@ -188,19 +201,19 @@ function sendCommand() {
         type: 'POST',
         success: function (data) {
             $('.overlay').remove();
-            logCommand(false, data['Result']);
+            logCommand(false, data.Result);
         },
         error: function (jqXHR, textStatus, errorThrown) {
             $('.overlay').remove();
-            logCommand(false, jqXHR.status + ' ' + errorThrown + ' - ' + jqXHR.responseJSON['Message']);
+            logCommand(false, jqXHR.status + ' ' + errorThrown + ' - ' + jqXHR.responseJSON.Message);
         }
     });
 
     if (tmpAutoClear !== 'false') $cmdInput.val('');
 }
-//#endregion Commands Page
+//}#endregion Commands
 
-//#region Global Config Utils
+//{#region Config Utils
 function generateConfigHTML(mode) {
     var namespace = mode === 'ASF' ? 'ArchiSteamFarm.GlobalConfig' : 'ArchiSteamFarm.BotConfig';
     $('.box-content-config').empty(); // Clear page content first
@@ -210,8 +223,8 @@ function generateConfigHTML(mode) {
         type: 'GET',
         async: false,
         success: function (data) {
-            var obj = data['Result'],
-                config = obj['Body'],
+            var obj = data.Result,
+                config = obj.Body,
                 boxBodyHTML = '',
                 textBoxes = '',
                 checkBoxes = '',
@@ -228,7 +241,7 @@ function generateConfigHTML(mode) {
                     switch (value) {
                         case 'System.Boolean':
                             checkBoxes += '<div class="">'
-                                + '<button title="Toggle ' + key + '" type="button" data-type="' + value + '" class="btn btn-box-tool text-grey" id="' + key + '">'
+                                + '<button type="button" data-type="' + value + '" class="btn btn-box-tool text-grey" id="' + key + '">'
                                 + '<i id="ico' + key + '" class="fas fa-toggle-on fa-2x fa-fw fa-rotate-180" ></i ></button>'
                                 + readableKey
                                 + '</div>';
@@ -246,12 +259,14 @@ function generateConfigHTML(mode) {
                                 + '</div>';
                             break;
                         case 'System.Collections.Generic.HashSet`1[System.String]':
+                        case 'System.Collections.Immutable.ImmutableHashSet`1[System.String]':
                             textAreas += '<div class="form-group-config">'
                                 + '<label for="' + key + '">' + readableKey + '</label>'
                                 + '<textarea id="' + key + '" class="form-control" data-type="' + value + '" rows="4"></textarea>'
                                 + '</div>';
                             break;
                         case 'System.Collections.Generic.Dictionary`2[System.UInt64][ArchiSteamFarm.BotConfig+EPermission]':
+                        case 'System.Collections.Immutable.ImmutableDictionary`2[System.UInt64][ArchiSteamFarm.BotConfig+EPermission]':
                             textAreas += '<div class="form-group-config">'
                                 + '<label for="' + key + '">' + readableKey + '</label>'
                                 + '<textarea id="' + key + '" class="form-control" data-type="' + value + '" rows="3"></textarea>'
@@ -266,8 +281,8 @@ function generateConfigHTML(mode) {
                 }
 
                 if (mode === 'ASF') {
-                    boxBodyHTML = '<div class="col-lg-6 col-md-6 col-sm-6 col-xs-12">' + numberBoxes + '</div>'
-                        + '<div class="col-lg-6 col-md-6 col-sm-6 col-xs-12">' + checkBoxes + textBoxes + defaultBoxes + textAreas + '</div>';
+                    boxBodyHTML = '<div class="col-lg-6 col-md-6 col-sm-6 col-xs-12">' + checkBoxes + numberBoxes + '</div>'
+                        + '<div class="col-lg-6 col-md-6 col-sm-6 col-xs-12">' + textBoxes + defaultBoxes + textAreas + '</div>';
                 } else {
                     boxBodyHTML = '<div class="col-lg-4 col-md-4 col-sm-6 col-xs-12">' + defaultBoxes + '</div>'
                         + '<div class="col-lg-4 col-md-4 col-sm-6 col-xs-12">' + textBoxes + numberBoxes + '</div>'
@@ -305,9 +320,9 @@ function createClickFunction() {
         });
     }
 }
-//#endregion Global Config Utils
+//}#endregion Config Utils
 
-//#region Config Editor
+//{#region Editor
 var globalConfig = {};
 
 function loadPageContentEditor(botName) {
@@ -345,7 +360,7 @@ function loadConfigValues(botName) {
         url: requestURL,
         type: 'GET',
         success: function (data) {
-            var objResult = data['Result'],
+            var objResult = data.Result,
                 config = botName === 'ASF' ? objResult.GlobalConfig : objResult[0].BotConfig;
 
             globalConfig = config;
@@ -377,6 +392,7 @@ function loadConfigValues(botName) {
                             break;
 
                         case 'System.Collections.Generic.HashSet`1[System.String]':
+                        case 'System.Collections.Immutable.ImmutableHashSet`1[System.String]':
                             $key.text(''); // Reset textarea before filling
 
                             for (var ipcPrefix in value) {
@@ -385,6 +401,7 @@ function loadConfigValues(botName) {
                             break;
                             
                         case 'System.Collections.Generic.Dictionary`2[System.UInt64][ArchiSteamFarm.BotConfig+EPermission]':
+                        case 'System.Collections.Immutable.ImmutableDictionary`2[System.UInt64][ArchiSteamFarm.BotConfig+EPermission]':
                             $key.text(''); // Reset textarea before filling
 
                             for (var steamID64 in value) {
@@ -409,7 +426,7 @@ function loadValuesForBotsDropDown(botName) {
         url: '/Api/Bot/ASF',
         type: 'GET',
         success: function (data) {
-            var obj = data['Result'];
+            var obj = data.Result;
 
             if (botName !== 'ASF') {
                 botsDropDownHTML += '<li><a href="javascript:void(0)" onclick="loadPageContentEditor(\'ASF\')">ASF</a></li>';
@@ -469,6 +486,7 @@ function prepareConfigForSaving() {
                     break;
 
                 case 'System.Collections.Generic.HashSet`1[System.UInt32]':
+                case 'System.Collections.Immutable.ImmutableHashSet`1[System.UInt32]':
                     if ($keyValue === '') {
                         config[key] = [];
                         break;
@@ -478,6 +496,7 @@ function prepareConfigForSaving() {
                     break;
 
                 case 'System.Collections.Generic.HashSet`1[System.String]':
+                case 'System.Collections.Immutable.ImmutableHashSet`1[System.String]':
                     var ipcprefix = [],
                         lines = $key.val().split('\n');
 
@@ -489,6 +508,7 @@ function prepareConfigForSaving() {
                     break;
 
                 case 'System.Collections.Generic.Dictionary`2[System.UInt64][ArchiSteamFarm.BotConfig+EPermission]':
+                case 'System.Collections.Immutable.ImmutableDictionary`2[System.UInt64][ArchiSteamFarm.BotConfig+EPermission]':
                     var steamUserPermissions = {},
                         permissions = [],
                         lines = $key.val().split('\n');
@@ -542,15 +562,15 @@ function saveConfig(botName, config) {
         error: function (jqXHR, textStatus, errorThrown) {
             swal({
                 title: $.i18n('global-error-title'),
-                text: jqXHR.status + ' ' + errorThrown + ' - ' + jqXHR.responseJSON['Message'],
+                text: jqXHR.status + ' ' + errorThrown + ' - ' + jqXHR.responseJSON.Message,
                 type: 'error'
             }, function () { location.reload(); });
         }
     });
 }
-//#endregion Config Editor
+//}#endregion Editor
 
-//#region Config Generator
+//{#region Generator
 var globalDefaultConfig = {};
 
 function loadPageContentGenerator(mode) {
@@ -580,7 +600,7 @@ function loadDefaultConfigValues(mode) {
         url: '/Api/Structure/' + namespace,
         type: 'GET',
         success: function (data) {
-            var config = data['Result'];
+            var config = data.Result;
 
             globalDefaultConfig = config;
 
@@ -610,6 +630,7 @@ function loadDefaultConfigValues(mode) {
                             $key.val(config['s_' + key]);
                             break;
                         case 'System.Collections.Generic.Dictionary`2[System.UInt64][ArchiSteamFarm.BotConfig+EPermission]':
+                        case 'System.Collections.Immutable.ImmutableDictionary`2[System.UInt64][ArchiSteamFarm.BotConfig+EPermission]':
                             $key.text(''); // Reset textarea before filling
 
                             for (var steamID64 in value) {
@@ -692,12 +713,14 @@ function prepareConfigForDownload(mode) {
                     break;
 
                 case 'System.Collections.Generic.HashSet`1[System.UInt32]':
+                case 'System.Collections.Immutable.ImmutableHashSet`1[System.UInt32]':
                     if ($keyValue === '') continue;
                     var items = $keyValue.split(',');
                     if (items.map(Number) !== value) config[key] = items.map(Number);
                     break;
 
                 case 'System.Collections.Generic.HashSet`1[System.String]':
+                case 'System.Collections.Immutable.ImmutableHashSet`1[System.String]':
                     var ipcprefix = [],
                         lines = $key.val().split('\n');
 
@@ -709,6 +732,7 @@ function prepareConfigForDownload(mode) {
                     break;
 
                 case 'System.Collections.Generic.Dictionary`2[System.UInt64][ArchiSteamFarm.BotConfig+EPermission]':
+                case 'System.Collections.Immutable.ImmutableDictionary`2[System.UInt64][ArchiSteamFarm.BotConfig+EPermission]':
                     var steamUserPermissions = {},
                         permissions = [],
                         lines = $key.val().split('\n');
@@ -747,17 +771,17 @@ function prepareConfigForDownload(mode) {
     }
 }
 
-function downloadObjectAsJson(exportName, exportObj) {
-    var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportObj, null, "\t"));
+function downloadObjectAsJson(filename, json) {
+    var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(json, null, "\t"));
     var downloadAnchorNode = document.createElement('a');
     downloadAnchorNode.setAttribute("href", dataStr);
-    downloadAnchorNode.setAttribute("download", exportName + ".json");
+    downloadAnchorNode.setAttribute("download", filename + ".json");
     downloadAnchorNode.click();
     downloadAnchorNode.remove();
 }
-//#endregion Config Page
+//}#endregion Generator
 
-//#region Right Sidebar
+//{#region Right Sidebar
 $(function () {
     'use strict';
 
@@ -788,83 +812,23 @@ $(function () {
             if ($('body').hasClass('fixed')) {
                 $('body').removeClass('fixed');
                 $('body').addClass('layout-boxed');
-                $('#toggleBoxed').removeClass('text-grey');
-                $('#toggleBoxed').addClass('text-olive');
-                $('#iconBoxed').removeClass('fa-rotate-180');
+				$('#chkBoxed').bootstrapToggle('on');
             }
-        }
-    }
-
-    function toggleBoxed() {
-        if ($('body').hasClass('fixed')) {
-            $('body').removeClass('fixed');
-            $('body').addClass('layout-boxed');
-            $('#toggleBoxed').removeClass('text-grey');
-            $('#toggleBoxed').addClass('text-olive');
-            $('#iconBoxed').removeClass('fa-rotate-180');
-            $('#toggleBoxed').blur();
-            store('layoutState', 'layout-boxed');
-        } else {
-            $('body').removeClass('layout-boxed');
-            $('body').addClass('fixed');
-            $('#toggleBoxed').removeClass('text-olive');
-            $('#toggleBoxed').addClass('text-grey');
-            $('#iconBoxed').addClass('fa-rotate-180');
-            $('#toggleBoxed').blur();
-            store('layoutState', 'fixed');
         }
     }
 
     function changeNightmode(savedNightmodeState) {
         if (savedNightmodeState === 'nightmode') {
             $('body').addClass('nightmode');
-            $('#toggleNightmode').removeClass('text-grey');
-            $('#toggleNightmode').addClass('text-olive');
-            $('#iconNightmode').removeClass('fa-rotate-180');
-        }
-    }
-
-    function toggleNightmode() {
-        if ($('body').hasClass('nightmode')) {
-            $('body').removeClass('nightmode');
-            $('#toggleNightmode').removeClass('text-olive');
-            $('#toggleNightmode').addClass('text-grey');
-            $('#iconNightmode').addClass('fa-rotate-180');
-            $('#toggleNightmode').blur();
-            store('nightmodeState', null);
-        } else {
-            $('body').addClass('nightmode');
-            $('#toggleNightmode').removeClass('text-grey');
-            $('#toggleNightmode').addClass('text-olive');
-            $('#iconNightmode').removeClass('fa-rotate-180');
-            $('#toggleNightmode').blur();
-            store('nightmodeState', 'nightmode');
+			$('#chkNightmode').bootstrapToggle('on');
         }
     }
 
     function loadLanguageHTML() {
-        var tmpLangCode = get('langCode'),
-            tmpLangMissing = get('langMissing'),
-            tmpLangTotal = get('langTotal');
+        var tmpLangCode = get('langCode');
 
-        $('#currentLanguage').attr({
-            alt: tmpLangCode,
-            src: '../img/flags/' + tmpLangCode + '.gif'
-        });
-
-        if (tmpLangMissing > 0) {
-            var percentage = (tmpLangMissing * 100 / tmpLangTotal).toFixed(0),
-                //infoText = $.i18n('global-language-info', percentage); //Fix this
-                infoText = percentage + "% of this language is not translated!";
-            $('#languageInfo').html('<div class="alert alert-warning alert-dismissible">'
-                + '<button data-i18n="title-global-never" title="Never show again" type="button" class="close" data-dismiss="alert" aria-hidden="true">x</button>'
-                + infoText
-                + '</div>');
-        } else {
-            $('#languageInfo').text('');
-        }        
-
-        $('#languages').collapse('hide');
+		$('#currentLanguage').attr('class', 'flag-icon');
+		$('#currentLanguage').addClass('flag-icon-' + tmpLangCode);
     }
 
     function loadLayout() {
@@ -874,9 +838,7 @@ $(function () {
             tmpLeftSidebarState = get('leftSidebarState');
 
         if (tmpSkin && $.inArray(tmpSkin, mySkins)) changeSkin(tmpSkin);            
-        if (tmpLeftSidebarState === 'sidebar-collapse') {
-            $('body').addClass('sidebar-collapse');
-        } 
+        if (tmpLeftSidebarState === 'sidebar-collapse') $('body').addClass('sidebar-collapse');
         if (tmpLayoutState) changeBoxed(tmpLayoutState);
         if (tmpNightmodeState) changeNightmode(tmpNightmodeState);
 
@@ -886,16 +848,28 @@ $(function () {
             e.preventDefault();
             changeSkin($(this).data('skin'));
         });
-
-        $('#toggleBoxed').on('click', function (e) {
-            e.preventDefault();
-            toggleBoxed();
-        });
-
-        $('#toggleNightmode').on('click', function (e) {
-            e.preventDefault();
-            toggleNightmode();
-        });
+		
+		$('#chkBoxed').change(function() {
+			if ($('body').hasClass('fixed')) {
+				$('body').removeClass('fixed');
+				$('body').addClass('layout-boxed');
+				store('layoutState', 'layout-boxed');
+			} else {
+				$('body').removeClass('layout-boxed');
+				$('body').addClass('fixed');
+				store('layoutState', 'fixed');
+			}
+		});
+		
+		$('#chkNightmode').change(function() {
+			if ($('body').hasClass('nightmode')) {
+				$('body').removeClass('nightmode');
+				store('nightmodeState', null);
+			} else {
+				$('body').addClass('nightmode');
+				store('nightmodeState', 'nightmode');
+			}
+		});
 
         $('#leftSidebar').on('click', function (e) {
             e.preventDefault();
@@ -903,11 +877,14 @@ $(function () {
             store('leftSidebarState', state);
         });
 
-        $('.language').on('click', function (e) {
+        $('.language-item').on('click', function (e) {
             e.preventDefault();
             loadLocales($(this).data('locale'));
             loadLanguageHTML();
         });
+		
+		$('#chkBoxed').bootstrapToggle();
+		$('#chkNightmode').bootstrapToggle();
     }
 
     // Create the menu
@@ -916,21 +893,21 @@ $(function () {
     // Layout options
     $layoutSettings.append(
         '<h4 class="control-sidebar-heading" data-i18n="global-layout">Layout</h4>'
-        // Boxed Layout
-        + '<div class="form-group hidden-xs hidden-sm">'
+		// Boxed Layout
+		+ '<div class="form-group hidden-xs hidden-sm">'
         + '<label class="control-sidebar-subheading">'
-        + '<button data-i18n="title-global-boxed" title="Toggle boxed layout" type="button" class="btn btn-box-tool pull-right text-grey" id="toggleBoxed"><i id="iconBoxed" class="fas fa-toggle-on fa-2x fa-rotate-180"></i></button>'
+        + '<input id="chkBoxed" type="checkbox" data-style="ios pull-right" data-onstyle="default" data-toggle="toggle" data-size="mini" data-on="<i class=\'far fa-square\'></i>" data-off="<i class=\'far fa-square\'></i>">'
         + '<i class="far fa-square fa-fw"></i> <span data-i18n="global-boxed">Boxed Layout</span>'
         + '</label>'
-        + '<p data-i18n="global-boxed-description">Toggle the boxed layout</p>'
+        + '<p data-i18n="global-boxed-description">Toggle boxed layout</p>'
         + '</div>'
-        // Nightmode
-        + '<div class="form-group">'
+		// Nightmode
+		+ '<div class="form-group">'
         + '<label class="control-sidebar-subheading">'
-        + '<button data-i18n="title-global-nightmode" title="Toggle nightmode" type="button" class="btn btn-box-tool pull-right text-grey" id="toggleNightmode"><i id="iconNightmode" class="fas fa-toggle-on fa-2x fa-rotate-180"></i></button>'
+        + '<input id="chkNightmode" type="checkbox" data-style="ios pull-right" data-onstyle="default" data-toggle="toggle" data-size="mini" data-on="<i class=\'fas fa-moon\'></i>" data-off="<i class=\'fas fa-moon\'></i>">'
         + '<i class="fas fa-moon fa-fw"></i> <span data-i18n="global-nightmode">Nightmode</span>'
         + '</label>'
-        + '<p data-i18n="global-nightmode-description">Toggle the nightmode</p>'
+        + '<p data-i18n="global-nightmode-description">Toggle nightmode</p>'
         + '</div>'
     );
     
@@ -961,31 +938,19 @@ $(function () {
     $layoutSettings.append('<h4 class="control-sidebar-heading" data-i18n="global-skins">Skins</h4>');
     $layoutSettings.append($skinsList);
 
-    var $languagesList = $('<div />', { 'class': 'collapse', 'id': 'languages' });
-
     loadAllLanguages();
 
     for (var i in availableLanguages) {
         var language = availableLanguages[i],
-            langCode = (language === 'strings') ? 'us' : language.substr(language.length - 2).toLowerCase();
-
-        $languagesList.append('<button data-i18n="title-global-language" title="Change language" type="button" class="btn btn-box-tool language" data-locale="' + language + '"><img src="../img/flags/' + langCode + '.gif" alt="' + langCode + '"></button>');
+		langCode = (language === 'strings') ? 'us' : language.substr(language.length - 2).toLowerCase();
+		
+		if (language === 'strings.sr-CS') langCode = 'rs'; // fix for flag-icon-css
+		
+        $('.dropdown-language').append('<a class="language-item" href="javascript:void(0)" data-locale="' + language + '"><i class="flag-icon flag-icon-' + langCode + '"></i></a>');
     }
-
-    $layoutSettings.append('<h4 class="control-sidebar-heading" data-i18n="global-language">Language</h4>'
-        + '<div id="languageInfo"></div>'
-        + '<div class="form-group">'
-        + '<label class="control-sidebar-subheading">'
-        + '<button data-i18n="title-global-language" title="Change language" type="button" class="btn btn-box-tool pull-right" data-toggle="collapse" data-target="#languages"><span data-i18n="global-change">Change</span> <i class="fas fa-caret-down"></i></button>'
-        + '<img id="currentLanguage" src="../img/flags/us.gif" alt="us">'
-        + '</label>'
-        + '</div>'
-    );
-
-    $layoutSettings.append($languagesList);
 
     $('#control-right-sidebar').after($layoutSettings);
 
     loadLayout();
 });
-//#endregion Right Sidebar
+//}#endregion Right Sidebar

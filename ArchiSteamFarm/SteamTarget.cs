@@ -4,23 +4,24 @@
 //  / ___ \ | |  | (__ | | | || | ___) || |_|  __/| (_| || | | | | ||  _|| (_| || |   | | | | | |
 // /_/   \_\|_|   \___||_| |_||_||____/  \__|\___| \__,_||_| |_| |_||_|   \__,_||_|   |_| |_| |_|
 // 
-//  Copyright 2015-2018 Łukasz "JustArchi" Domeradzki
-//  Contact: JustArchi@JustArchi.net
+// Copyright 2015-2018 Łukasz "JustArchi" Domeradzki
+// Contact: JustArchi@JustArchi.net
 // 
-//  Licensed under the Apache License, Version 2.0 (the "License");
-//  you may not use this file except in compliance with the License.
-//  You may obtain a copy of the License at
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 // 
-//  http://www.apache.org/licenses/LICENSE-2.0
-//      
-//  Unless required by applicable law or agreed to in writing, software
-//  distributed under the License is distributed on an "AS IS" BASIS,
-//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//  See the License for the specific language governing permissions and
-//  limitations under the License.
+// http://www.apache.org/licenses/LICENSE-2.0
+// 
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Threading.Tasks;
 using NLog;
 using NLog.Config;
 using NLog.Targets;
@@ -35,6 +36,11 @@ namespace ArchiSteamFarm {
 		[SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 		[SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")]
 		public string BotName { get; set; }
+
+		// This is NLog config property, it must have public get() and set() capabilities
+		[SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
+		[SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")]
+		public ulong ChatGroupID { get; set; }
 
 		// This is NLog config property, it must have public get() and set() capabilities
 		[SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
@@ -59,25 +65,56 @@ namespace ArchiSteamFarm {
 				return;
 			}
 
-			Bot bot;
-			if (string.IsNullOrEmpty(BotName)) {
-				bot = Bot.Bots.Values.FirstOrDefault(targetBot => targetBot.IsConnectedAndLoggedOn && (targetBot.CachedSteamID != SteamID));
-				if (bot == null) {
-					return;
-				}
-			} else {
-				if (!Bot.Bots.TryGetValue(BotName, out bot)) {
-					return;
-				}
+			string message = Layout.Render(logEvent);
 
-				if (!bot.IsConnectedAndLoggedOn || (bot.CachedSteamID == SteamID)) {
+			if (string.IsNullOrEmpty(message)) {
+				return;
+			}
+
+			Bot bot = null;
+
+			if (!string.IsNullOrEmpty(BotName)) {
+				if (!Bot.Bots.TryGetValue(BotName, out bot) || !bot.IsConnectedAndLoggedOn) {
 					return;
 				}
 			}
 
-			string message = Layout.Render(logEvent);
+			if (ChatGroupID != 0) {
+				await SendGroupMessage(message, bot).ConfigureAwait(false);
+			} else if ((bot == null) || (bot.CachedSteamID != SteamID)) {
+				await SendPrivateMessage(message, bot).ConfigureAwait(false);
+			}
+		}
+
+		private async Task SendGroupMessage(string message, Bot bot = null) {
 			if (string.IsNullOrEmpty(message)) {
+				ASF.ArchiLogger.LogNullError(nameof(message));
 				return;
+			}
+
+			if (bot == null) {
+				bot = Bot.Bots.Values.FirstOrDefault(targetBot => targetBot.IsConnectedAndLoggedOn);
+
+				if (bot == null) {
+					return;
+				}
+			}
+
+			await bot.SendMessage(ChatGroupID, SteamID, message).ConfigureAwait(false);
+		}
+
+		private async Task SendPrivateMessage(string message, Bot bot = null) {
+			if (string.IsNullOrEmpty(message)) {
+				ASF.ArchiLogger.LogNullError(nameof(message));
+				return;
+			}
+
+			if (bot == null) {
+				bot = Bot.Bots.Values.FirstOrDefault(targetBot => targetBot.IsConnectedAndLoggedOn && (targetBot.CachedSteamID != SteamID));
+
+				if (bot == null) {
+					return;
+				}
 			}
 
 			await bot.SendMessage(SteamID, message).ConfigureAwait(false);

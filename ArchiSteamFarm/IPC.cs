@@ -4,20 +4,20 @@
 //  / ___ \ | |  | (__ | | | || | ___) || |_|  __/| (_| || | | | | ||  _|| (_| || |   | | | | | |
 // /_/   \_\|_|   \___||_| |_||_||____/  \__|\___| \__,_||_| |_| |_||_|   \__,_||_|   |_| |_| |_|
 // 
-//  Copyright 2015-2018 Łukasz "JustArchi" Domeradzki
-//  Contact: JustArchi@JustArchi.net
+// Copyright 2015-2018 Łukasz "JustArchi" Domeradzki
+// Contact: JustArchi@JustArchi.net
 // 
-//  Licensed under the Apache License, Version 2.0 (the "License");
-//  you may not use this file except in compliance with the License.
-//  You may obtain a copy of the License at
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 // 
-//  http://www.apache.org/licenses/LICENSE-2.0
-//      
-//  Unless required by applicable law or agreed to in writing, software
-//  distributed under the License is distributed on an "AS IS" BASIS,
-//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//  See the License for the specific language governing permissions and
-//  limitations under the License.
+// http://www.apache.org/licenses/LICENSE-2.0
+// 
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 using System;
 using System.Collections.Concurrent;
@@ -84,22 +84,19 @@ namespace ArchiSteamFarm {
 		private static HttpListener HttpListener;
 		private static bool IsHandlingRequests;
 
-		internal static void OnNewHistoryTarget(HistoryTarget historyTarget) {
-			if (historyTarget == null) {
-				ASF.ArchiLogger.LogNullError(nameof(historyTarget));
-				return;
-			}
-
+		internal static void OnNewHistoryTarget(HistoryTarget historyTarget = null) {
 			if (HistoryTarget != null) {
 				HistoryTarget.NewHistoryEntry -= OnNewHistoryEntry;
 				HistoryTarget = null;
 			}
 
-			historyTarget.NewHistoryEntry += OnNewHistoryEntry;
-			HistoryTarget = historyTarget;
+			if (historyTarget != null) {
+				historyTarget.NewHistoryEntry += OnNewHistoryEntry;
+				HistoryTarget = historyTarget;
+			}
 		}
 
-		internal static void Start(HashSet<string> prefixes) {
+		internal static void Start(IReadOnlyCollection<string> prefixes) {
 			if ((prefixes == null) || (prefixes.Count == 0)) {
 				ASF.ArchiLogger.LogNullError(nameof(prefixes));
 				return;
@@ -177,42 +174,41 @@ namespace ArchiSteamFarm {
 			}
 
 			switch (arguments[argumentsIndex]) {
-				case "ASF":
-					return await HandleApiASF(context.Request, context.Response, arguments, ++argumentsIndex).ConfigureAwait(false);
-				case "Bot/":
-					return await HandleApiBot(context.Request, context.Response, arguments, ++argumentsIndex).ConfigureAwait(false);
-				case "Command":
-				case "Command/":
-					return await HandleApiCommand(context.Request, context.Response, arguments, ++argumentsIndex).ConfigureAwait(false);
-				case "GamesToRedeemInBackground/":
-					return await HandleApiGamesToRedeemInBackground(context.Request, context.Response, arguments, ++argumentsIndex).ConfigureAwait(false);
-				case "Log":
-					return await HandleApiLog(context, arguments, ++argumentsIndex).ConfigureAwait(false);
-				case "Structure/":
-					return await HandleApiStructure(context.Request, context.Response, arguments, ++argumentsIndex).ConfigureAwait(false);
-				case "Type/":
-					return await HandleApiType(context.Request, context.Response, arguments, ++argumentsIndex).ConfigureAwait(false);
-				case "WWW/":
-					return await HandleApiWWW(context.Request, context.Response, arguments, ++argumentsIndex).ConfigureAwait(false);
+				case "ASF" when context.Request.HttpMethod == HttpMethods.Get:
+					return await HandleApiASFGet(context.Request, context.Response, arguments, ++argumentsIndex).ConfigureAwait(false);
+				case "ASF" when context.Request.HttpMethod == HttpMethods.Post:
+					return await HandleApiASFPost(context.Request, context.Response, arguments, ++argumentsIndex).ConfigureAwait(false);
+				case "Bot/" when context.Request.HttpMethod == HttpMethods.Delete:
+					return await HandleApiBotDelete(context.Request, context.Response, arguments, ++argumentsIndex).ConfigureAwait(false);
+				case "Bot/" when context.Request.HttpMethod == HttpMethods.Get:
+					return await HandleApiBotGet(context.Request, context.Response, arguments, ++argumentsIndex).ConfigureAwait(false);
+				case "Bot/" when context.Request.HttpMethod == HttpMethods.Post:
+					return await HandleApiBotPost(context.Request, context.Response, arguments, ++argumentsIndex).ConfigureAwait(false);
+				case "Command/" when context.Request.HttpMethod == HttpMethods.Post:
+					return await HandleApiCommandPost(context.Request, context.Response, arguments, ++argumentsIndex).ConfigureAwait(false);
+				case "GamesToRedeemInBackground/" when context.Request.HttpMethod == HttpMethods.Delete:
+					return await HandleApiGamesToRedeemInBackgroundDelete(context.Request, context.Response, arguments, ++argumentsIndex).ConfigureAwait(false);
+				case "GamesToRedeemInBackground/" when context.Request.HttpMethod == HttpMethods.Get:
+					return await HandleApiGamesToRedeemInBackgroundGet(context.Request, context.Response, arguments, ++argumentsIndex).ConfigureAwait(false);
+				case "GamesToRedeemInBackground/" when context.Request.HttpMethod == HttpMethods.Post:
+					return await HandleApiGamesToRedeemInBackgroundPost(context.Request, context.Response, arguments, ++argumentsIndex).ConfigureAwait(false);
+				case "Log" when context.Request.HttpMethod == HttpMethods.Get:
+					return await HandleApiLogGet(context, arguments, ++argumentsIndex).ConfigureAwait(false);
+				case "Structure/" when context.Request.HttpMethod == HttpMethods.Get:
+					return await HandleApiStructureGet(context.Request, context.Response, arguments, ++argumentsIndex).ConfigureAwait(false);
+				case "Type/" when context.Request.HttpMethod == HttpMethods.Get:
+					return await HandleApiTypeGet(context.Request, context.Response, arguments, ++argumentsIndex).ConfigureAwait(false);
+				case "WWW/" when arguments.Length > ++argumentsIndex:
+					switch (arguments[argumentsIndex]) {
+						case "Directory/" when context.Request.HttpMethod == HttpMethods.Get:
+							return await HandleApiWWWDirectoryGet(context.Request, context.Response, arguments, ++argumentsIndex).ConfigureAwait(false);
+						case "Send" when context.Request.HttpMethod == HttpMethods.Post:
+							return await HandleApiWWWSendPost(context.Request, context.Response, arguments, ++argumentsIndex).ConfigureAwait(false);
+						default:
+							return false;
+					}
 				default:
 					return false;
-			}
-		}
-
-		private static async Task<bool> HandleApiASF(HttpListenerRequest request, HttpListenerResponse response, string[] arguments, byte argumentsIndex) {
-			if ((request == null) || (response == null) || (arguments == null) || (argumentsIndex == 0)) {
-				ASF.ArchiLogger.LogNullError(nameof(request) + " || " + nameof(response) + " || " + nameof(arguments) + " || " + nameof(argumentsIndex));
-				return false;
-			}
-
-			switch (request.HttpMethod) {
-				case HttpMethods.Get:
-					return await HandleApiASFGet(request, response, arguments, argumentsIndex).ConfigureAwait(false);
-				case HttpMethods.Post:
-					return await HandleApiASFPost(request, response, arguments, argumentsIndex).ConfigureAwait(false);
-				default:
-					await ResponseStatusCode(request, response, HttpStatusCode.MethodNotAllowed).ConfigureAwait(false);
-					return true;
 			}
 		}
 
@@ -230,7 +226,7 @@ namespace ArchiSteamFarm {
 				processStartTime = process.StartTime;
 			}
 
-			ASFResponse asfResponse = new ASFResponse(Program.GlobalConfig, memoryUsage, processStartTime, SharedInfo.Version);
+			ASFResponse asfResponse = new ASFResponse(SharedInfo.BuildInfo.Variant, Program.GlobalConfig, memoryUsage, processStartTime, SharedInfo.Version);
 
 			await ResponseJsonObject(request, response, new GenericResponse<ASFResponse>(true, "OK", asfResponse)).ConfigureAwait(false);
 			return true;
@@ -279,6 +275,8 @@ namespace ArchiSteamFarm {
 				}
 			}
 
+			jsonRequest.GlobalConfig.ShouldSerializeEverything = false;
+
 			string filePath = Path.Combine(SharedInfo.ConfigDirectory, SharedInfo.GlobalConfigFileName);
 
 			if (!await GlobalConfig.Write(filePath, jsonRequest.GlobalConfig).ConfigureAwait(false)) {
@@ -288,25 +286,6 @@ namespace ArchiSteamFarm {
 
 			await ResponseJsonObject(request, response, new GenericResponse<object>(true, "OK")).ConfigureAwait(false);
 			return true;
-		}
-
-		private static async Task<bool> HandleApiBot(HttpListenerRequest request, HttpListenerResponse response, string[] arguments, byte argumentsIndex) {
-			if ((request == null) || (response == null) || (arguments == null) || (argumentsIndex == 0)) {
-				ASF.ArchiLogger.LogNullError(nameof(request) + " || " + nameof(response) + " || " + nameof(arguments) + " || " + nameof(argumentsIndex));
-				return false;
-			}
-
-			switch (request.HttpMethod) {
-				case HttpMethods.Delete:
-					return await HandleApiBotDelete(request, response, arguments, argumentsIndex).ConfigureAwait(false);
-				case HttpMethods.Get:
-					return await HandleApiBotGet(request, response, arguments, argumentsIndex).ConfigureAwait(false);
-				case HttpMethods.Post:
-					return await HandleApiBotPost(request, response, arguments, argumentsIndex).ConfigureAwait(false);
-				default:
-					await ResponseStatusCode(request, response, HttpStatusCode.MethodNotAllowed).ConfigureAwait(false);
-					return true;
-			}
 		}
 
 		private static async Task<bool> HandleApiBotDelete(HttpListenerRequest request, HttpListenerResponse response, string[] arguments, byte argumentsIndex) {
@@ -431,6 +410,8 @@ namespace ArchiSteamFarm {
 				}
 			}
 
+			jsonRequest.BotConfig.ShouldSerializeEverything = false;
+
 			string filePath = Path.Combine(SharedInfo.ConfigDirectory, botName + SharedInfo.ConfigExtension);
 
 			if (!await BotConfig.Write(filePath, jsonRequest.BotConfig).ConfigureAwait(false)) {
@@ -440,26 +421,6 @@ namespace ArchiSteamFarm {
 
 			await ResponseJsonObject(request, response, new GenericResponse<object>(true, "OK")).ConfigureAwait(false);
 			return true;
-		}
-
-		private static async Task<bool> HandleApiCommand(HttpListenerRequest request, HttpListenerResponse response, string[] arguments, byte argumentsIndex) {
-			if ((request == null) || (response == null) || (arguments == null) || (argumentsIndex == 0)) {
-				ASF.ArchiLogger.LogNullError(nameof(request) + " || " + nameof(response) + " || " + nameof(arguments) + " || " + nameof(argumentsIndex));
-				return false;
-			}
-
-			if (Program.GlobalConfig.SteamOwnerID == 0) {
-				await ResponseJsonObject(request, response, new GenericResponse<string>(false, string.Format(Strings.ErrorIsEmpty, nameof(Program.GlobalConfig.SteamOwnerID))), HttpStatusCode.BadRequest).ConfigureAwait(false);
-				return true;
-			}
-
-			switch (request.HttpMethod) {
-				case HttpMethods.Post:
-					return await HandleApiCommandPost(request, response, arguments, argumentsIndex).ConfigureAwait(false);
-				default:
-					await ResponseStatusCode(request, response, HttpStatusCode.MethodNotAllowed).ConfigureAwait(false);
-					return true;
-			}
 		}
 
 		private static async Task<bool> HandleApiCommandPost(HttpListenerRequest request, HttpListenerResponse response, string[] arguments, byte argumentsIndex) {
@@ -475,6 +436,11 @@ namespace ArchiSteamFarm {
 			string argument = WebUtility.UrlDecode(string.Join("", arguments.Skip(argumentsIndex)));
 			if (string.IsNullOrEmpty(argument)) {
 				await ResponseJsonObject(request, response, new GenericResponse<string>(false, string.Format(Strings.ErrorIsEmpty, nameof(argument))), HttpStatusCode.BadRequest).ConfigureAwait(false);
+				return true;
+			}
+
+			if (Program.GlobalConfig.SteamOwnerID == 0) {
+				await ResponseJsonObject(request, response, new GenericResponse<string>(false, string.Format(Strings.ErrorIsInvalid, nameof(Program.GlobalConfig.SteamOwnerID))), HttpStatusCode.BadRequest).ConfigureAwait(false);
 				return true;
 			}
 
@@ -494,19 +460,92 @@ namespace ArchiSteamFarm {
 			return true;
 		}
 
-		private static async Task<bool> HandleApiGamesToRedeemInBackground(HttpListenerRequest request, HttpListenerResponse response, string[] arguments, byte argumentsIndex) {
+		private static async Task<bool> HandleApiGamesToRedeemInBackgroundDelete(HttpListenerRequest request, HttpListenerResponse response, string[] arguments, byte argumentsIndex) {
 			if ((request == null) || (response == null) || (arguments == null) || (argumentsIndex == 0)) {
 				ASF.ArchiLogger.LogNullError(nameof(request) + " || " + nameof(response) + " || " + nameof(arguments) + " || " + nameof(argumentsIndex));
 				return false;
 			}
 
-			switch (request.HttpMethod) {
-				case HttpMethods.Post:
-					return await HandleApiGamesToRedeemInBackgroundPost(request, response, arguments, argumentsIndex).ConfigureAwait(false);
-				default:
-					await ResponseStatusCode(request, response, HttpStatusCode.MethodNotAllowed).ConfigureAwait(false);
-					return true;
+			if (arguments.Length <= argumentsIndex) {
+				return false;
 			}
+
+			string argument = WebUtility.UrlDecode(string.Join("", arguments.Skip(argumentsIndex)));
+
+			HashSet<Bot> bots = Bot.GetBots(argument);
+			if ((bots == null) || (bots.Count == 0)) {
+				await ResponseJsonObject(request, response, new GenericResponse<object>(false, string.Format(Strings.BotNotFound, argument)), HttpStatusCode.BadRequest).ConfigureAwait(false);
+				return true;
+			}
+
+			IEnumerable<Task<bool>> tasks = bots.Select(bot => Task.Run(() => bot.DeleteRedeemedKeysFiles()));
+			ICollection<bool> results;
+
+			switch (Program.GlobalConfig.OptimizationMode) {
+				case GlobalConfig.EOptimizationMode.MinMemoryUsage:
+					results = new List<bool>(bots.Count);
+					foreach (Task<bool> task in tasks) {
+						results.Add(await task.ConfigureAwait(false));
+					}
+
+					break;
+				default:
+					results = await Task.WhenAll(tasks).ConfigureAwait(false);
+					break;
+			}
+
+			if (results.Any(result => !result)) {
+				await ResponseJsonObject(request, response, new GenericResponse<object>(false, "Removing one or more files failed, check ASF log for details"), HttpStatusCode.BadRequest).ConfigureAwait(false);
+				return true;
+			}
+
+			await ResponseJsonObject(request, response, new GenericResponse<object>(true, "OK")).ConfigureAwait(false);
+			return true;
+		}
+
+		private static async Task<bool> HandleApiGamesToRedeemInBackgroundGet(HttpListenerRequest request, HttpListenerResponse response, string[] arguments, byte argumentsIndex) {
+			if ((request == null) || (response == null) || (arguments == null) || (argumentsIndex == 0)) {
+				ASF.ArchiLogger.LogNullError(nameof(request) + " || " + nameof(response) + " || " + nameof(arguments) + " || " + nameof(argumentsIndex));
+				return false;
+			}
+
+			if (arguments.Length <= argumentsIndex) {
+				return false;
+			}
+
+			string argument = WebUtility.UrlDecode(string.Join("", arguments.Skip(argumentsIndex)));
+
+			HashSet<Bot> bots = Bot.GetBots(argument);
+			if ((bots == null) || (bots.Count == 0)) {
+				await ResponseJsonObject(request, response, new GenericResponse<object>(false, string.Format(Strings.BotNotFound, argument)), HttpStatusCode.BadRequest).ConfigureAwait(false);
+				return true;
+			}
+
+			IEnumerable<(string BotName, Task<(Dictionary<string, string> UnusedKeys, Dictionary<string, string> UsedKeys)> Task)> tasks = bots.Select(bot => (bot.BotName, bot.GetUsedAndUnusedKeys()));
+			ICollection<(string BotName, (Dictionary<string, string> UnusedKeys, Dictionary<string, string> UsedKeys))> results;
+
+			switch (Program.GlobalConfig.OptimizationMode) {
+				case GlobalConfig.EOptimizationMode.MinMemoryUsage:
+					results = new List<(string BotName, (Dictionary<string, string> UnusedKeys, Dictionary<string, string> UsedKeys))>(bots.Count);
+					foreach ((string botName, Task<(Dictionary<string, string> UnusedKeys, Dictionary<string, string> UsedKeys)> task) in tasks) {
+						results.Add((botName, await task.ConfigureAwait(false)));
+					}
+
+					break;
+				default:
+					results = await Task.WhenAll(tasks.Select(async task => (task.BotName, await task.Task.ConfigureAwait(false)))).ConfigureAwait(false);
+
+					break;
+			}
+
+			Dictionary<string, GamesToRedeemInBackgroundResponse> jsonResponse = new Dictionary<string, GamesToRedeemInBackgroundResponse>();
+
+			foreach ((string botName, (Dictionary<string, string> UnusedKeys, Dictionary<string, string> UsedKeys) taskResult) in results) {
+				jsonResponse[botName] = new GamesToRedeemInBackgroundResponse(taskResult.UnusedKeys, taskResult.UsedKeys);
+			}
+
+			await ResponseJsonObject(request, response, new GenericResponse<Dictionary<string, GamesToRedeemInBackgroundResponse>>(true, "OK", jsonResponse)).ConfigureAwait(false);
+			return true;
 		}
 
 		private static async Task<bool> HandleApiGamesToRedeemInBackgroundPost(HttpListenerRequest request, HttpListenerResponse response, string[] arguments, byte argumentsIndex) {
@@ -568,21 +607,6 @@ namespace ArchiSteamFarm {
 			return true;
 		}
 
-		private static async Task<bool> HandleApiLog(HttpListenerContext context, string[] arguments, byte argumentsIndex) {
-			if ((context == null) || (arguments == null) || (argumentsIndex == 0)) {
-				ASF.ArchiLogger.LogNullError(nameof(context) + " || " + nameof(arguments) + " || " + nameof(argumentsIndex));
-				return false;
-			}
-
-			switch (context.Request.HttpMethod) {
-				case HttpMethods.Get:
-					return await HandleApiLogGet(context, arguments, argumentsIndex).ConfigureAwait(false);
-				default:
-					await ResponseStatusCode(context.Request, context.Response, HttpStatusCode.MethodNotAllowed).ConfigureAwait(false);
-					return true;
-			}
-		}
-
 		private static async Task<bool> HandleApiLogGet(HttpListenerContext context, string[] arguments, byte argumentsIndex) {
 			if ((context == null) || (arguments == null) || (argumentsIndex == 0)) {
 				ASF.ArchiLogger.LogNullError(nameof(context) + " || " + nameof(arguments) + " || " + nameof(argumentsIndex));
@@ -637,21 +661,6 @@ namespace ArchiSteamFarm {
 			}
 		}
 
-		private static async Task<bool> HandleApiStructure(HttpListenerRequest request, HttpListenerResponse response, string[] arguments, byte argumentsIndex) {
-			if ((request == null) || (response == null) || (arguments == null) || (argumentsIndex == 0)) {
-				ASF.ArchiLogger.LogNullError(nameof(request) + " || " + nameof(response) + " || " + nameof(arguments) + " || " + nameof(argumentsIndex));
-				return false;
-			}
-
-			switch (request.HttpMethod) {
-				case HttpMethods.Get:
-					return await HandleApiStructureGet(request, response, arguments, argumentsIndex).ConfigureAwait(false);
-				default:
-					await ResponseStatusCode(request, response, HttpStatusCode.MethodNotAllowed).ConfigureAwait(false);
-					return true;
-			}
-		}
-
 		private static async Task<bool> HandleApiStructureGet(HttpListenerRequest request, HttpListenerResponse response, string[] arguments, byte argumentsIndex) {
 			if ((request == null) || (response == null) || (arguments == null) || (argumentsIndex == 0)) {
 				ASF.ArchiLogger.LogNullError(nameof(request) + " || " + nameof(response) + " || " + nameof(arguments) + " || " + nameof(argumentsIndex));
@@ -666,8 +675,20 @@ namespace ArchiSteamFarm {
 			Type targetType = Type.GetType(argument);
 
 			if (targetType == null) {
-				await ResponseJsonObject(request, response, new GenericResponse<object>(false, string.Format(Strings.ErrorIsInvalid, nameof(argument))), HttpStatusCode.BadRequest).ConfigureAwait(false);
-				return true;
+				// We can try one more time by trying to smartly guess the assembly name from the namespace, this will work for custom libraries like SteamKit2
+				int index = argument.IndexOf('.');
+
+				if ((index <= 0) || (index >= argument.Length - 1)) {
+					await ResponseJsonObject(request, response, new GenericResponse<TypeResponse>(false, string.Format(Strings.ErrorIsInvalid, nameof(argument))), HttpStatusCode.BadRequest).ConfigureAwait(false);
+					return true;
+				}
+
+				targetType = Type.GetType(argument + "," + argument.Substring(0, index));
+
+				if (targetType == null) {
+					await ResponseJsonObject(request, response, new GenericResponse<TypeResponse>(false, string.Format(Strings.ErrorIsInvalid, nameof(argument))), HttpStatusCode.BadRequest).ConfigureAwait(false);
+					return true;
+				}
 			}
 
 			object obj;
@@ -681,21 +702,6 @@ namespace ArchiSteamFarm {
 
 			await ResponseJsonObject(request, response, new GenericResponse<object>(true, "OK", obj)).ConfigureAwait(false);
 			return true;
-		}
-
-		private static async Task<bool> HandleApiType(HttpListenerRequest request, HttpListenerResponse response, string[] arguments, byte argumentsIndex) {
-			if ((request == null) || (response == null) || (arguments == null) || (argumentsIndex == 0)) {
-				ASF.ArchiLogger.LogNullError(nameof(request) + " || " + nameof(response) + " || " + nameof(arguments) + " || " + nameof(argumentsIndex));
-				return false;
-			}
-
-			switch (request.HttpMethod) {
-				case HttpMethods.Get:
-					return await HandleApiTypeGet(request, response, arguments, argumentsIndex).ConfigureAwait(false);
-				default:
-					await ResponseStatusCode(request, response, HttpStatusCode.MethodNotAllowed).ConfigureAwait(false);
-					return true;
-			}
 		}
 
 		private static async Task<bool> HandleApiTypeGet(HttpListenerRequest request, HttpListenerResponse response, string[] arguments, byte argumentsIndex) {
@@ -712,8 +718,20 @@ namespace ArchiSteamFarm {
 			Type targetType = Type.GetType(argument);
 
 			if (targetType == null) {
-				await ResponseJsonObject(request, response, new GenericResponse<TypeResponse>(false, string.Format(Strings.ErrorIsInvalid, nameof(argument))), HttpStatusCode.BadRequest).ConfigureAwait(false);
-				return true;
+				// We can try one more time by trying to smartly guess the assembly name from the namespace, this will work for custom libraries like SteamKit2
+				int index = argument.IndexOf('.');
+
+				if ((index <= 0) || (index >= argument.Length - 1)) {
+					await ResponseJsonObject(request, response, new GenericResponse<TypeResponse>(false, string.Format(Strings.ErrorIsInvalid, nameof(argument))), HttpStatusCode.BadRequest).ConfigureAwait(false);
+					return true;
+				}
+
+				targetType = Type.GetType(argument + "," + argument.Substring(0, index));
+
+				if (targetType == null) {
+					await ResponseJsonObject(request, response, new GenericResponse<TypeResponse>(false, string.Format(Strings.ErrorIsInvalid, nameof(argument))), HttpStatusCode.BadRequest).ConfigureAwait(false);
+					return true;
+				}
 			}
 
 			string baseType = targetType.BaseType?.GetUnifiedName();
@@ -724,11 +742,19 @@ namespace ArchiSteamFarm {
 
 			if (targetType.IsClass) {
 				foreach (FieldInfo field in targetType.GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public).Where(field => !field.IsPrivate)) {
-					body[field.Name] = field.FieldType.GetUnifiedName();
+					JsonPropertyAttribute jsonProperty = field.GetCustomAttribute<JsonPropertyAttribute>();
+
+					if (jsonProperty != null) {
+						body[jsonProperty.PropertyName ?? field.Name] = field.FieldType.GetUnifiedName();
+					}
 				}
 
 				foreach (PropertyInfo property in targetType.GetProperties(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public).Where(property => property.CanRead && !property.GetMethod.IsPrivate)) {
-					body[property.Name] = property.PropertyType.GetUnifiedName();
+					JsonPropertyAttribute jsonProperty = property.GetCustomAttribute<JsonPropertyAttribute>();
+
+					if (jsonProperty != null) {
+						body[jsonProperty.PropertyName ?? property.Name] = property.PropertyType.GetUnifiedName();
+					}
 				}
 			} else if (targetType.IsEnum) {
 				Type enumType = Enum.GetUnderlyingType(targetType);
@@ -743,39 +769,6 @@ namespace ArchiSteamFarm {
 
 			await ResponseJsonObject(request, response, new GenericResponse<TypeResponse>(true, "OK", new TypeResponse(body, properties))).ConfigureAwait(false);
 			return true;
-		}
-
-		private static async Task<bool> HandleApiWWW(HttpListenerRequest request, HttpListenerResponse response, string[] arguments, byte argumentsIndex) {
-			if ((request == null) || (response == null) || (arguments == null) || (argumentsIndex == 0)) {
-				ASF.ArchiLogger.LogNullError(nameof(request) + " || " + nameof(response) + " || " + nameof(arguments) + " || " + nameof(argumentsIndex));
-				return false;
-			}
-
-			if (arguments.Length <= argumentsIndex) {
-				return false;
-			}
-
-			switch (arguments[argumentsIndex]) {
-				case "Directory/":
-					return await HandleApiWWWDirectory(request, response, arguments, ++argumentsIndex).ConfigureAwait(false);
-				default:
-					return false;
-			}
-		}
-
-		private static async Task<bool> HandleApiWWWDirectory(HttpListenerRequest request, HttpListenerResponse response, string[] arguments, byte argumentsIndex) {
-			if ((request == null) || (response == null) || (arguments == null) || (argumentsIndex == 0)) {
-				ASF.ArchiLogger.LogNullError(nameof(request) + " || " + nameof(response) + " || " + nameof(arguments) + " || " + nameof(argumentsIndex));
-				return false;
-			}
-
-			switch (request.HttpMethod) {
-				case HttpMethods.Get:
-					return await HandleApiWWWDirectoryGet(request, response, arguments, argumentsIndex).ConfigureAwait(false);
-				default:
-					await ResponseStatusCode(request, response, HttpStatusCode.MethodNotAllowed).ConfigureAwait(false);
-					return true;
-			}
 		}
 
 		private static async Task<bool> HandleApiWWWDirectoryGet(HttpListenerRequest request, HttpListenerResponse response, string[] arguments, byte argumentsIndex) {
@@ -808,6 +801,58 @@ namespace ArchiSteamFarm {
 			HashSet<string> result = files.Select(Path.GetFileName).ToHashSet();
 
 			await ResponseJsonObject(request, response, new GenericResponse<HashSet<string>>(true, "OK", result)).ConfigureAwait(false);
+			return true;
+		}
+
+		private static async Task<bool> HandleApiWWWSendPost(HttpListenerRequest request, HttpListenerResponse response, string[] arguments, byte argumentsIndex) {
+			if ((request == null) || (response == null) || (arguments == null) || (argumentsIndex == 0)) {
+				ASF.ArchiLogger.LogNullError(nameof(request) + " || " + nameof(response) + " || " + nameof(arguments) + " || " + nameof(argumentsIndex));
+				return false;
+			}
+
+			const string requiredContentType = "application/json";
+
+			if (string.IsNullOrEmpty(request.ContentType) || ((request.ContentType != requiredContentType) && !request.ContentType.StartsWith(requiredContentType + ";", StringComparison.Ordinal))) {
+				await ResponseJsonObject(request, response, new GenericResponse<string>(false, nameof(request.ContentType) + " must be declared as " + requiredContentType), HttpStatusCode.NotAcceptable).ConfigureAwait(false);
+				return true;
+			}
+
+			string body;
+			using (StreamReader reader = new StreamReader(request.InputStream)) {
+				body = await reader.ReadToEndAsync().ConfigureAwait(false);
+			}
+
+			if (string.IsNullOrEmpty(body)) {
+				await ResponseJsonObject(request, response, new GenericResponse<string>(false, string.Format(Strings.ErrorIsEmpty, nameof(body))), HttpStatusCode.BadRequest).ConfigureAwait(false);
+				return true;
+			}
+
+			WWWSendRequest jsonRequest;
+
+			try {
+				jsonRequest = JsonConvert.DeserializeObject<WWWSendRequest>(body);
+			} catch (Exception e) {
+				await ResponseJsonObject(request, response, new GenericResponse<string>(false, string.Format(Strings.ErrorParsingObject, nameof(jsonRequest)) + Environment.NewLine + e), HttpStatusCode.BadRequest).ConfigureAwait(false);
+				return true;
+			}
+
+			if (jsonRequest == null) {
+				await ResponseJsonObject(request, response, new GenericResponse<string>(false, string.Format(Strings.ErrorObjectIsNull, nameof(jsonRequest))), HttpStatusCode.BadRequest).ConfigureAwait(false);
+				return true;
+			}
+
+			if (string.IsNullOrEmpty(jsonRequest.URL) || !Uri.TryCreate(jsonRequest.URL, UriKind.Absolute, out Uri uri) || !uri.Scheme.Equals(Uri.UriSchemeHttps)) {
+				await ResponseJsonObject(request, response, new GenericResponse<string>(false, string.Format(Strings.ErrorIsInvalid, nameof(jsonRequest.URL))), HttpStatusCode.BadRequest).ConfigureAwait(false);
+				return true;
+			}
+
+			WebBrowser.HtmlDocumentResponse urlResponse = await Program.WebBrowser.UrlGetToHtmlDocument(jsonRequest.URL).ConfigureAwait(false);
+			if (urlResponse?.Content == null) {
+				await ResponseJsonObject(request, response, new GenericResponse<string>(false, string.Format(Strings.ErrorRequestFailedTooManyTimes, WebBrowser.MaxTries)), HttpStatusCode.BadRequest).ConfigureAwait(false);
+				return true;
+			}
+
+			await ResponseJsonObject(request, response, new GenericResponse<string>(true, "OK", urlResponse.Content.DocumentNode.InnerHtml)).ConfigureAwait(false);
 			return true;
 		}
 
@@ -1178,6 +1223,9 @@ namespace ArchiSteamFarm {
 
 		private sealed class ASFResponse {
 			[JsonProperty]
+			private readonly string BuildVariant;
+
+			[JsonProperty]
 			private readonly GlobalConfig GlobalConfig;
 
 			[JsonProperty]
@@ -1189,11 +1237,12 @@ namespace ArchiSteamFarm {
 			[JsonProperty]
 			private readonly Version Version;
 
-			internal ASFResponse(GlobalConfig globalConfig, uint memoryUsage, DateTime processStartTime, Version version) {
-				if ((globalConfig == null) || (memoryUsage == 0) || (processStartTime == DateTime.MinValue) || (version == null)) {
-					throw new ArgumentNullException(nameof(memoryUsage) + " || " + nameof(processStartTime) + " || " + nameof(version));
+			internal ASFResponse(string buildVariant, GlobalConfig globalConfig, uint memoryUsage, DateTime processStartTime, Version version) {
+				if (string.IsNullOrEmpty(buildVariant) || (globalConfig == null) || (memoryUsage == 0) || (processStartTime == DateTime.MinValue) || (version == null)) {
+					throw new ArgumentNullException(nameof(buildVariant) + " || " + nameof(globalConfig) + " || " + nameof(memoryUsage) + " || " + nameof(processStartTime) + " || " + nameof(version));
 				}
 
+				BuildVariant = buildVariant;
 				GlobalConfig = globalConfig;
 				MemoryUsage = memoryUsage;
 				ProcessStartTime = processStartTime;
@@ -1224,6 +1273,19 @@ namespace ArchiSteamFarm {
 
 			// Deserialized from JSON
 			private GamesToRedeemInBackgroundRequest() { }
+		}
+
+		private sealed class GamesToRedeemInBackgroundResponse {
+			[JsonProperty]
+			internal readonly Dictionary<string, string> UnusedKeys;
+
+			[JsonProperty]
+			internal readonly Dictionary<string, string> UsedKeys;
+
+			internal GamesToRedeemInBackgroundResponse(Dictionary<string, string> unusedKeys = null, Dictionary<string, string> usedKeys = null) {
+				UnusedKeys = unusedKeys;
+				UsedKeys = usedKeys;
+			}
 		}
 
 		private sealed class GenericResponse<T> where T : class {
@@ -1281,6 +1343,17 @@ namespace ArchiSteamFarm {
 					UnderlyingType = underlyingType;
 				}
 			}
+		}
+
+		[SuppressMessage("ReSharper", "ClassCannotBeInstantiated")]
+		private sealed class WWWSendRequest {
+#pragma warning disable 649
+			[JsonProperty(Required = Required.Always)]
+			internal readonly string URL;
+#pragma warning restore 649
+
+			// Deserialized from JSON
+			private WWWSendRequest() { }
 		}
 	}
 }

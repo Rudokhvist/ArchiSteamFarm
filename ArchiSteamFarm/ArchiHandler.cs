@@ -4,20 +4,20 @@
 //  / ___ \ | |  | (__ | | | || | ___) || |_|  __/| (_| || | | | | ||  _|| (_| || |   | | | | | |
 // /_/   \_\|_|   \___||_| |_||_||____/  \__|\___| \__,_||_| |_| |_||_|   \__,_||_|   |_| |_| |_|
 // 
-//  Copyright 2015-2018 Łukasz "JustArchi" Domeradzki
-//  Contact: JustArchi@JustArchi.net
+// Copyright 2015-2018 Łukasz "JustArchi" Domeradzki
+// Contact: JustArchi@JustArchi.net
 // 
-//  Licensed under the Apache License, Version 2.0 (the "License");
-//  you may not use this file except in compliance with the License.
-//  You may obtain a copy of the License at
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 // 
-//  http://www.apache.org/licenses/LICENSE-2.0
-//      
-//  Unless required by applicable law or agreed to in writing, software
-//  distributed under the License is distributed on an "AS IS" BASIS,
-//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//  See the License for the specific language governing permissions and
-//  limitations under the License.
+// http://www.apache.org/licenses/LICENSE-2.0
+// 
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 using System;
 using System.Collections.Generic;
@@ -30,16 +30,31 @@ using ArchiSteamFarm.CMsgs;
 using ArchiSteamFarm.Localization;
 using SteamKit2;
 using SteamKit2.Internal;
+using SteamKit2.Unified.Internal;
 
 namespace ArchiSteamFarm {
 	internal sealed class ArchiHandler : ClientMsgHandler {
 		internal const byte MaxGamesPlayedConcurrently = 32; // This is limit introduced by Steam Network
 
 		private readonly ArchiLogger ArchiLogger;
+		private readonly SteamUnifiedMessages.UnifiedService<IChatRoom> UnifiedChatRoomService;
+		private readonly SteamUnifiedMessages.UnifiedService<IClanChatRooms> UnifiedClanChatRoomsService;
+		private readonly SteamUnifiedMessages.UnifiedService<IFriendMessages> UnifiedFriendMessagesService;
+		private readonly SteamUnifiedMessages.UnifiedService<IPlayer> UnifiedPlayerService;
 
 		internal DateTime LastPacketReceived { get; private set; }
 
-		internal ArchiHandler(ArchiLogger archiLogger) => ArchiLogger = archiLogger ?? throw new ArgumentNullException(nameof(archiLogger));
+		internal ArchiHandler(ArchiLogger archiLogger, SteamUnifiedMessages steamUnifiedMessages) {
+			if ((archiLogger == null) || (steamUnifiedMessages == null)) {
+				throw new ArgumentNullException(nameof(archiLogger) + " || " + nameof(steamUnifiedMessages));
+			}
+
+			ArchiLogger = archiLogger;
+			UnifiedChatRoomService = steamUnifiedMessages.CreateService<IChatRoom>();
+			UnifiedClanChatRoomsService = steamUnifiedMessages.CreateService<IClanChatRooms>();
+			UnifiedFriendMessagesService = steamUnifiedMessages.CreateService<IFriendMessages>();
+			UnifiedPlayerService = steamUnifiedMessages.CreateService<IPlayer>();
+		}
 
 		public override void HandleMsg(IPacketMsg packetMsg) {
 			if (packetMsg == null) {
@@ -50,9 +65,6 @@ namespace ArchiSteamFarm {
 			LastPacketReceived = DateTime.UtcNow;
 
 			switch (packetMsg.MsgType) {
-				case EMsg.ClientFSOfflineMessageNotification:
-					HandleFSOfflineMessageNotification(packetMsg);
-					break;
 				case EMsg.ClientItemAnnouncements:
 					HandleItemAnnouncements(packetMsg);
 					break;
@@ -77,6 +89,35 @@ namespace ArchiSteamFarm {
 			}
 		}
 
+		internal void AckChatMessage(ulong chatGroupID, ulong chatID, uint timestamp) {
+			if ((chatGroupID == 0) || (chatID == 0) || (timestamp == 0)) {
+				ArchiLogger.LogNullError(nameof(chatGroupID) + " || " + nameof(chatID) + " || " + nameof(timestamp));
+				return;
+			}
+
+			CChatRoom_AckChatMessage_Notification request = new CChatRoom_AckChatMessage_Notification {
+				chat_group_id = chatGroupID,
+				chat_id = chatID,
+				timestamp = timestamp
+			};
+
+			UnifiedChatRoomService.SendMessage(x => x.AckChatMessage(request), true);
+		}
+
+		internal void AckMessage(ulong steamID, uint timestamp) {
+			if ((steamID == 0) || (timestamp == 0)) {
+				ArchiLogger.LogNullError(nameof(steamID) + " || " + nameof(timestamp));
+				return;
+			}
+
+			CFriendMessages_AckMessage_Notification request = new CFriendMessages_AckMessage_Notification {
+				steamid_partner = steamID,
+				timestamp = timestamp
+			};
+
+			UnifiedFriendMessagesService.SendMessage(x => x.AckMessage(request), true);
+		}
+
 		internal void AcknowledgeClanInvite(ulong clanID, bool acceptInvite) {
 			if (clanID == 0) {
 				ArchiLogger.LogNullError(nameof(clanID));
@@ -95,6 +136,114 @@ namespace ArchiSteamFarm {
 			};
 
 			Client.Send(request);
+		}
+
+		internal async Task<bool> AddFriend(ulong steamID) {
+			if (steamID == 0) {
+				ArchiLogger.LogNullError(nameof(steamID));
+				return false;
+			}
+
+			CPlayer_AddFriend_Request request = new CPlayer_AddFriend_Request { steamid = steamID };
+
+			SteamUnifiedMessages.ServiceMethodResponse response;
+
+			try {
+				response = await UnifiedPlayerService.SendMessage(x => x.AddFriend(request));
+			} catch (Exception e) {
+				ArchiLogger.LogGenericWarningException(e);
+				return false;
+			}
+
+			if (response == null) {
+				ArchiLogger.LogNullError(nameof(response));
+				return false;
+			}
+
+			return response.Result == EResult.OK;
+		}
+
+		internal async Task<ulong> GetClanChatGroupID(ulong steamID) {
+			if ((steamID == 0) || !new SteamID(steamID).IsClanAccount) {
+				ArchiLogger.LogNullError(nameof(steamID));
+				return 0;
+			}
+
+			CClanChatRooms_GetClanChatRoomInfo_Request request = new CClanChatRooms_GetClanChatRoomInfo_Request {
+				autocreate = true,
+				steamid = steamID
+			};
+
+			SteamUnifiedMessages.ServiceMethodResponse response;
+
+			try {
+				response = await UnifiedClanChatRoomsService.SendMessage(x => x.GetClanChatRoomInfo(request));
+			} catch (Exception e) {
+				ArchiLogger.LogGenericWarningException(e);
+				return 0;
+			}
+
+			if (response == null) {
+				ArchiLogger.LogNullError(nameof(response));
+				return 0;
+			}
+
+			if (response.Result != EResult.OK) {
+				return 0;
+			}
+
+			CClanChatRooms_GetClanChatRoomInfo_Response body = response.GetDeserializedResponse<CClanChatRooms_GetClanChatRoomInfo_Response>();
+			return body.chat_group_summary.chat_group_id;
+		}
+
+		internal async Task<HashSet<ulong>> GetMyChatGroupIDs() {
+			CChatRoom_GetMyChatRoomGroups_Request request = new CChatRoom_GetMyChatRoomGroups_Request();
+
+			SteamUnifiedMessages.ServiceMethodResponse response;
+
+			try {
+				response = await UnifiedChatRoomService.SendMessage(x => x.GetMyChatRoomGroups(request));
+			} catch (Exception e) {
+				ArchiLogger.LogGenericWarningException(e);
+				return null;
+			}
+
+			if (response == null) {
+				ArchiLogger.LogNullError(nameof(response));
+				return null;
+			}
+
+			if (response.Result != EResult.OK) {
+				return null;
+			}
+
+			CChatRoom_GetMyChatRoomGroups_Response body = response.GetDeserializedResponse<CChatRoom_GetMyChatRoomGroups_Response>();
+			return body.chat_room_groups.Select(chatRoom => chatRoom.group_summary.chat_group_id).ToHashSet();
+		}
+
+		internal async Task<bool> JoinChatRoomGroup(ulong chatGroupID) {
+			if (chatGroupID == 0) {
+				ArchiLogger.LogNullError(nameof(chatGroupID));
+				return false;
+			}
+
+			CChatRoom_JoinChatRoomGroup_Request request = new CChatRoom_JoinChatRoomGroup_Request { chat_group_id = chatGroupID };
+
+			SteamUnifiedMessages.ServiceMethodResponse response;
+
+			try {
+				response = await UnifiedChatRoomService.SendMessage(x => x.JoinChatRoomGroup(request));
+			} catch (Exception e) {
+				ArchiLogger.LogGenericWarningException(e);
+				return false;
+			}
+
+			if (response == null) {
+				ArchiLogger.LogNullError(nameof(response));
+				return false;
+			}
+
+			return response.Result == EResult.OK;
 		}
 
 		internal async Task PlayGames(IEnumerable<uint> gameIDs, string gameName = null) {
@@ -192,19 +341,103 @@ namespace ArchiSteamFarm {
 			}
 		}
 
+		internal async Task<bool> RemoveFriend(ulong steamID) {
+			if (steamID == 0) {
+				ArchiLogger.LogNullError(nameof(steamID));
+				return false;
+			}
+
+			CPlayer_RemoveFriend_Request request = new CPlayer_RemoveFriend_Request { steamid = steamID };
+
+			SteamUnifiedMessages.ServiceMethodResponse response;
+
+			try {
+				response = await UnifiedPlayerService.SendMessage(x => x.RemoveFriend(request));
+			} catch (Exception e) {
+				ArchiLogger.LogGenericWarningException(e);
+				return false;
+			}
+
+			if (response == null) {
+				ArchiLogger.LogNullError(nameof(response));
+				return false;
+			}
+
+			return response.Result == EResult.OK;
+		}
+
 		internal void RequestItemAnnouncements() {
 			ClientMsgProtobuf<CMsgClientRequestItemAnnouncements> request = new ClientMsgProtobuf<CMsgClientRequestItemAnnouncements>(EMsg.ClientRequestItemAnnouncements);
 			Client.Send(request);
 		}
 
-		private void HandleFSOfflineMessageNotification(IPacketMsg packetMsg) {
-			if (packetMsg == null) {
-				ArchiLogger.LogNullError(nameof(packetMsg));
+		internal async Task<bool> SendMessage(ulong steamID, string message) {
+			if ((steamID == 0) || string.IsNullOrEmpty(message)) {
+				ArchiLogger.LogNullError(nameof(steamID) + " || " + nameof(message));
+				return false;
+			}
+
+			CFriendMessages_SendMessage_Request request = new CFriendMessages_SendMessage_Request {
+				chat_entry_type = (int) EChatEntryType.ChatMsg,
+				contains_bbcode = true,
+				message = message,
+				steamid = steamID
+			};
+
+			SteamUnifiedMessages.ServiceMethodResponse response;
+
+			try {
+				response = await UnifiedFriendMessagesService.SendMessage(x => x.SendMessage(request));
+			} catch (Exception e) {
+				ArchiLogger.LogGenericWarningException(e);
+				return false;
+			}
+
+			if (response == null) {
+				ArchiLogger.LogNullError(nameof(response));
+				return false;
+			}
+
+			return response.Result == EResult.OK;
+		}
+
+		internal async Task<bool> SendMessage(ulong chatGroupID, ulong chatID, string message) {
+			if ((chatGroupID == 0) || (chatID == 0) || string.IsNullOrEmpty(message)) {
+				ArchiLogger.LogNullError(nameof(chatGroupID) + " || " + nameof(chatID) + " || " + nameof(message));
+				return false;
+			}
+
+			CChatRoom_SendChatMessage_Request request = new CChatRoom_SendChatMessage_Request {
+				chat_group_id = chatGroupID,
+				chat_id = chatID,
+				message = message
+			};
+
+			SteamUnifiedMessages.ServiceMethodResponse response;
+
+			try {
+				response = await UnifiedChatRoomService.SendMessage(x => x.SendChatMessage(request));
+			} catch (Exception e) {
+				ArchiLogger.LogGenericWarningException(e);
+				return false;
+			}
+
+			if (response == null) {
+				ArchiLogger.LogNullError(nameof(response));
+				return false;
+			}
+
+			return response.Result == EResult.OK;
+		}
+
+		internal void SetCurrentMode(uint chatMode) {
+			if (chatMode == 0) {
+				ArchiLogger.LogNullError(nameof(chatMode));
 				return;
 			}
 
-			ClientMsgProtobuf<CMsgClientOfflineMessageNotification> response = new ClientMsgProtobuf<CMsgClientOfflineMessageNotification>(packetMsg);
-			Client.PostCallback(new OfflineMessageCallback(packetMsg.TargetJobID, response.Body));
+			ClientMsgProtobuf<CMsgClientUIMode> request = new ClientMsgProtobuf<CMsgClientUIMode>(EMsg.ClientCurrentUIMode) { Body = { chat_mode = chatMode } };
+			Client.Send(request);
 		}
 
 		private void HandleItemAnnouncements(IPacketMsg packetMsg) {
@@ -275,26 +508,6 @@ namespace ArchiSteamFarm {
 
 			ClientMsgProtobuf<CMsgClientVanityURLChangedNotification> response = new ClientMsgProtobuf<CMsgClientVanityURLChangedNotification>(packetMsg);
 			Client.PostCallback(new VanityURLChangedCallback(packetMsg.TargetJobID, response.Body));
-		}
-
-		internal sealed class OfflineMessageCallback : CallbackMsg {
-			internal readonly uint OfflineMessagesCount;
-			internal readonly HashSet<ulong> SteamIDs;
-
-			internal OfflineMessageCallback(JobID jobID, CMsgClientOfflineMessageNotification msg) {
-				if ((jobID == null) || (msg == null)) {
-					throw new ArgumentNullException(nameof(jobID) + " || " + nameof(msg));
-				}
-
-				JobID = jobID;
-				OfflineMessagesCount = msg.offline_messages;
-
-				if (msg.friends_with_offline_messages == null) {
-					return;
-				}
-
-				SteamIDs = msg.friends_with_offline_messages.Select(steam3ID => new SteamID(steam3ID, EUniverse.Public, EAccountType.Individual).ConvertToUInt64()).ToHashSet();
-			}
 		}
 
 		internal sealed class PlayingSessionStateCallback : CallbackMsg {

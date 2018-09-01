@@ -4,23 +4,24 @@
 //  / ___ \ | |  | (__ | | | || | ___) || |_|  __/| (_| || | | | | ||  _|| (_| || |   | | | | | |
 // /_/   \_\|_|   \___||_| |_||_||____/  \__|\___| \__,_||_| |_| |_||_|   \__,_||_|   |_| |_| |_|
 // 
-//  Copyright 2015-2018 Łukasz "JustArchi" Domeradzki
-//  Contact: JustArchi@JustArchi.net
+// Copyright 2015-2018 Łukasz "JustArchi" Domeradzki
+// Contact: JustArchi@JustArchi.net
 // 
-//  Licensed under the Apache License, Version 2.0 (the "License");
-//  you may not use this file except in compliance with the License.
-//  You may obtain a copy of the License at
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 // 
-//  http://www.apache.org/licenses/LICENSE-2.0
-//      
-//  Unless required by applicable law or agreed to in writing, software
-//  distributed under the License is distributed on an "AS IS" BASIS,
-//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//  See the License for the specific language governing permissions and
-//  limitations under the License.
+// http://www.apache.org/licenses/LICENSE-2.0
+// 
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 using System;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Threading.Tasks;
 using ArchiSteamFarm.Localization;
 using NLog;
@@ -37,6 +38,34 @@ namespace ArchiSteamFarm {
 			Logger = LogManager.GetLogger(name);
 		}
 
+		internal void LogChatMessage(bool echo, string message, ulong chatGroupID = 0, ulong chatID = 0, ulong steamID = 0, [CallerMemberName] string previousMethodName = null) {
+			if (string.IsNullOrEmpty(message) || (((chatGroupID == 0) || (chatID == 0)) && (steamID == 0))) {
+				LogNullError(nameof(message) + " || " + "((" + nameof(chatGroupID) + " || " + nameof(chatID) + ") && " + nameof(steamID) + ")");
+				return;
+			}
+
+			StringBuilder loggedMessage = new StringBuilder(previousMethodName + "() " + message + " " + (echo ? "->" : "<-") + " ");
+
+			if ((chatGroupID != 0) && (chatID != 0)) {
+				loggedMessage.Append(chatGroupID + "-" + chatID);
+
+				if (steamID != 0) {
+					loggedMessage.Append("/" + steamID);
+				}
+			} else if (steamID != 0) {
+				loggedMessage.Append(steamID);
+			}
+
+			LogEventInfo logEventInfo = new LogEventInfo(LogLevel.Trace, Logger.Name, loggedMessage.ToString());
+			logEventInfo.Properties["Echo"] = echo;
+			logEventInfo.Properties["Message"] = message;
+			logEventInfo.Properties["ChatGroupID"] = chatGroupID;
+			logEventInfo.Properties["ChatID"] = chatID;
+			logEventInfo.Properties["SteamID"] = steamID;
+
+			Logger.Log(logEventInfo);
+		}
+
 		internal async Task LogFatalException(Exception exception, [CallerMemberName] string previousMethodName = null) {
 			if (exception == null) {
 				LogNullError(nameof(exception));
@@ -51,7 +80,6 @@ namespace ArchiSteamFarm {
 			}
 
 			// Otherwise, we ran into fatal exception before logging module could even get initialized, so activate fallback logging that involves file and console
-
 			string message = string.Format(DateTime.Now + " " + Strings.ErrorEarlyFatalExceptionInfo, SharedInfo.Version) + Environment.NewLine;
 
 			try {

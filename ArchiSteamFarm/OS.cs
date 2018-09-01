@@ -4,24 +4,25 @@
 //  / ___ \ | |  | (__ | | | || | ___) || |_|  __/| (_| || | | | | ||  _|| (_| || |   | | | | | |
 // /_/   \_\|_|   \___||_| |_||_||____/  \__|\___| \__,_||_| |_| |_||_|   \__,_||_|   |_| |_| |_|
 // 
-//  Copyright 2015-2018 Łukasz "JustArchi" Domeradzki
-//  Contact: JustArchi@JustArchi.net
+// Copyright 2015-2018 Łukasz "JustArchi" Domeradzki
+// Contact: JustArchi@JustArchi.net
 // 
-//  Licensed under the Apache License, Version 2.0 (the "License");
-//  you may not use this file except in compliance with the License.
-//  You may obtain a copy of the License at
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 // 
-//  http://www.apache.org/licenses/LICENSE-2.0
-//      
-//  Unless required by applicable law or agreed to in writing, software
-//  distributed under the License is distributed on an "AS IS" BASIS,
-//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//  See the License for the specific language governing permissions and
-//  limitations under the License.
+// http://www.apache.org/licenses/LICENSE-2.0
+// 
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using ArchiSteamFarm.Localization;
 
 namespace ArchiSteamFarm {
@@ -29,13 +30,26 @@ namespace ArchiSteamFarm {
 		internal static bool IsUnix => RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
 		internal static string Variant => RuntimeInformation.OSDescription.Trim();
 
-		internal static void Init(bool systemRequired) {
+		internal static void Init(bool systemRequired, GlobalConfig.EOptimizationMode optimizationMode) {
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
 				DisableQuickEditMode();
 
 				if (systemRequired) {
 					KeepWindowsSystemActive();
 				}
+			}
+
+			switch (optimizationMode) {
+				case GlobalConfig.EOptimizationMode.MaxPerformance:
+					// No specific tuning required for now, ASF is optimized for max performance by default
+					break;
+				case GlobalConfig.EOptimizationMode.MinMemoryUsage:
+					// We can disable regex cache which will slightly lower memory usage (for a huge performance hit)
+					Regex.CacheSize = 0;
+					break;
+				default:
+					ASF.ArchiLogger.LogGenericError(string.Format(Strings.WarningUnknownValuePleaseReport, nameof(optimizationMode), optimizationMode));
+					return;
 			}
 		}
 
