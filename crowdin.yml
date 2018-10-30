@@ -5,12 +5,12 @@
     "translation": "/ArchiSteamFarm/Localization/Strings.%locale%.resx"
   },
   {
-    "source": "/ArchiSteamFarm/www/locale/strings.json",
-    "translation": "/ArchiSteamFarm/www/locale/strings.%locale%.json"
+    "source": "/ASF-ui/src/i18n/locale/default.json",
+    "translation": "/ASF-ui/src/i18n/locale/%locale%.json"
   },
   {
-    "source": "/WebConfigGenerator/src/locale/strings.json",
-    "translation": "/WebConfigGenerator/src/locale/%locale%.json"
+    "source": "/ASF-WebConfigGenerator/src/locale/strings.json",
+    "translation": "/ASF-WebConfigGenerator/src/locale/%locale%.json"
   },
   {
     "source": "/wiki/*.md",

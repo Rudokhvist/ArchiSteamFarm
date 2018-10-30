@@ -5,6 +5,18 @@ $ProgressPreference = 'SilentlyContinue'
 Set-Location $PSScriptRoot
 Set-Location ..\\..
 
+Push-Location -Path ASF-ui
+git reset --hard
+git clean -fd
+git pull
+Pop-Location
+
+Push-Location -Path ASF-WebConfigGenerator
+git reset --hard
+git clean -fd
+git pull
+Pop-Location
+
 Push-Location -Path wiki
 git reset --hard
 git clean -fd
