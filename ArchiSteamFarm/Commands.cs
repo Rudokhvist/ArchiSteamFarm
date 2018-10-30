@@ -51,13 +51,13 @@ namespace ArchiSteamFarm {
 
 			if (!string.IsNullOrEmpty(Program.GlobalConfig.CommandPrefix)) {
 				if (!message.StartsWith(Program.GlobalConfig.CommandPrefix, StringComparison.Ordinal)) {
-                    			if (!IsValidCdKey(message.Split(new [] { '\n' })[0]))
+                    			if (!Utilities.IsValidCdKey(message.Split(new [] { '\n' })[0]))
                     				{
                         				return null;
                     				}
                     			else
                     				{
-							message = "!r " + BotName + " " + message;
+							message = "!r " + Bot.BotName + " " + message;
 						}
 				}
 
