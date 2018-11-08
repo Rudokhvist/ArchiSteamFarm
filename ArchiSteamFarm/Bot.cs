@@ -2005,7 +2005,9 @@ namespace ArchiSteamFarm {
 						Utilities.InBackground(RedeemGamesInBackground);
 					}
 
-					ArchiHandler.SetCurrentMode(2);
+					if (BotConfig.OnlineStatus != EPersonaState.Offline) {
+						ArchiHandler.SetCurrentMode(2);
+					}
 					ArchiHandler.RequestItemAnnouncements();
 
 					// Sometimes Steam won't send us our own PersonaStateCallback, so request it explicitly
