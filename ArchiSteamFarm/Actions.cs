@@ -88,7 +88,7 @@ namespace ArchiSteamFarm {
 					return false;
 				}
 
-				if ((acceptedTradeOfferIDs == null) || (acceptedTradeOfferIDs.Count == 0) || results.Where(result => (result.TradeOfferID != 0) && confirmations.Contains(result.Confirmation)).Select(result => result.TradeOfferID).Where(acceptedTradeOfferIDs.Remove).Any(tradeOfferID => acceptedTradeOfferIDs.Count == 0)) {
+				if ((acceptedTradeOfferIDs == null) || (acceptedTradeOfferIDs.Count == 0) || results.Where(result => (result != null) && (result.TradeOfferID != 0) && confirmations.Contains(result.Confirmation)).Select(result => result.TradeOfferID).Where(acceptedTradeOfferIDs.Remove).Any(tradeOfferID => acceptedTradeOfferIDs.Count == 0)) {
 					return true;
 				}
 			}
@@ -333,14 +333,18 @@ namespace ArchiSteamFarm {
 
 		internal bool SwitchLootingAllowed() => LootingAllowed = !LootingAllowed;
 
-		internal static async Task<(bool Success, Version Version)> Update() {
+		internal static async Task<(bool Success, string Message)> Update() {
 			Version version = await ASF.Update(true).ConfigureAwait(false);
-			if ((version == null) || (version <= SharedInfo.Version)) {
-				return (false, version);
+			if (version == null) {
+				return (false, null);
+			}
+
+			if (SharedInfo.Version >= version) {
+				return (false, "V" + SharedInfo.Version + " ≥ V" + version);
 			}
 
 			Utilities.InBackground(ASF.RestartOrExit);
-			return (true, version);
+			return (true, version.ToString());
 		}
 
 		private ulong GetFirstSteamMasterID() => Bot.BotConfig.SteamUserPermissions.Where(kv => (kv.Key != 0) && (kv.Value == BotConfig.EPermission.Master)).Select(kv => kv.Key).OrderByDescending(steamID => steamID != Bot.SteamID).ThenBy(steamID => steamID).FirstOrDefault();
