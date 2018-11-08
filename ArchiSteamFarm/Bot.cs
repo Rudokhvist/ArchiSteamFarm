@@ -526,7 +526,7 @@ namespace ArchiSteamFarm {
 					string botPattern = botName.Substring(2);
 
 					try {
-						IEnumerable<Bot> regexMatches = Bots.Where(kvp => Regex.IsMatch(kvp.Key, botPattern, RegexOptions.CultureInvariant)).Select(kvp => kvp.Value);
+						IEnumerable<Bot> regexMatches = Bots.Where(kvp => Regex.IsMatch(kvp.Key, botPattern, RegexOptions.IgnoreCase)).Select(kvp => kvp.Value);
 						result.UnionWith(regexMatches);
 					} catch (ArgumentException e) {
 						ASF.ArchiLogger.LogGenericWarningException(e);
