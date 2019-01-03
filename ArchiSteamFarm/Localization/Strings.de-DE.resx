@@ -466,20 +466,8 @@ StackTrace:
   <data name="BotLootingMasterNotDefined" xml:space="preserve">
     <value>Das Handelsangebot konnte nicht gesendet werden, da kein Benutzer mit Master-Berechtigung definiert ist!</value>
   </data>
-  <data name="BotLootingNoLootableTypes" xml:space="preserve">
-    <value>Du hast keine Gegenstandstypen zum Versenden festgelegt!</value>
-  </data>
-  <data name="BotLootingNowDisabled" xml:space="preserve">
-    <value>Plündern ist nun deaktiviert!</value>
-  </data>
-  <data name="BotLootingNowEnabled" xml:space="preserve">
-    <value>Plündern ist nun aktiviert!</value>
-  </data>
   <data name="BotLootingSuccess" xml:space="preserve">
     <value>Handelsangebot erfolgreich gesendet!</value>
-  </data>
-  <data name="BotLootingTemporarilyDisabled" xml:space="preserve">
-    <value>Plündern ist vorübergehend deaktiviert!</value>
   </data>
   <data name="BotSendingTradeToYourself" xml:space="preserve">
     <value>Du kannst nicht mit dir selbst handeln!</value>
@@ -667,5 +655,28 @@ StackTrace:
   </data>
   <data name="BotHasNoWallet" xml:space="preserve">
     <value>Der Bot hat kein Guthaben.</value>
+  </data>
+  <data name="BotLevel" xml:space="preserve">
+    <value>Der Bot hat das Level {0}.</value>
+    <comment>{0} will be replaced by bot's level</comment>
+  </data>
+  <data name="ActivelyMatchingItems" xml:space="preserve">
+    <value>Vergleich der Steam-Gegenstände, Durchgang #{0}...</value>
+    <comment>{0} will be replaced by round number</comment>
+  </data>
+  <data name="DoneActivelyMatchingItems" xml:space="preserve">
+    <value>Vergleich der Steam-Gegenstände abgeschlossen, Durchgang #{0}.</value>
+    <comment>{0} will be replaced by round number</comment>
+  </data>
+  <data name="ErrorAborted" xml:space="preserve">
+    <value>Abgebrochen!</value>
+  </data>
+  <data name="ActivelyMatchingItemsRound" xml:space="preserve">
+    <value>Übereinstimmende Anzahl von {0} Set(s) in diesem Durchgang.</value>
+    <comment>{0} will be replaced by number of sets traded</comment>
+  </data>
+  <data name="WarningExcessiveBotsCount" xml:space="preserve">
+    <value>Bei dir laufen mehr private Bot-Konten als unser höchster, empfohlender Grenzwert von ({0}). Beachte, dass diese Konfiguration nicht unterstützt wird und verschiedene Steam bezogene Probleme verursachen kann, einschließlich Kontosperrungen. Für weitere Details schaue dir das FAQ an.</value>
+    <comment>{0} will be replaced by our maximum recommended bots count (number)</comment>
   </data>
 </root>

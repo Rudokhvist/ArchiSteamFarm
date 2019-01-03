@@ -4,7 +4,7 @@
 //  / ___ \ | |  | (__ | | | || | ___) || |_|  __/| (_| || | | | | ||  _|| (_| || |   | | | | | |
 // /_/   \_\|_|   \___||_| |_||_||____/  \__|\___| \__,_||_| |_| |_||_|   \__,_||_|   |_| |_| |_|
 // 
-// Copyright 2015-2018 Łukasz "JustArchi" Domeradzki
+// Copyright 2015-2019 Łukasz "JustArchi" Domeradzki
 // Contact: JustArchi@JustArchi.net
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -39,6 +39,7 @@ namespace ArchiSteamFarm.IPC.Controllers.Api {
 			uint memoryUsage = (uint) GC.GetTotalMemory(false) / 1024;
 
 			ASFResponse result = new ASFResponse(SharedInfo.BuildInfo.Variant, Program.GlobalConfig, memoryUsage, RuntimeCompatibility.ProcessStartTime, SharedInfo.Version);
+
 			return Ok(new GenericResponse<ASFResponse>(result));
 		}
 
@@ -51,10 +52,12 @@ namespace ArchiSteamFarm.IPC.Controllers.Api {
 		public async Task<ActionResult<GenericResponse>> ASFPost([FromBody] ASFRequest request) {
 			if (request == null) {
 				ASF.ArchiLogger.LogNullError(nameof(request));
+
 				return BadRequest(new GenericResponse(false, string.Format(Strings.ErrorIsEmpty, nameof(request))));
 			}
 
 			(bool valid, string errorMessage) = request.GlobalConfig.CheckValidation();
+
 			if (!valid) {
 				return BadRequest(new GenericResponse(false, errorMessage));
 			}
@@ -69,6 +72,7 @@ namespace ArchiSteamFarm.IPC.Controllers.Api {
 			string filePath = Path.Combine(SharedInfo.ConfigDirectory, SharedInfo.GlobalConfigFileName);
 
 			bool result = await GlobalConfig.Write(filePath, request.GlobalConfig).ConfigureAwait(false);
+
 			return Ok(new GenericResponse(result));
 		}
 
@@ -79,6 +83,7 @@ namespace ArchiSteamFarm.IPC.Controllers.Api {
 		[ProducesResponseType(typeof(GenericResponse), 200)]
 		public ActionResult<GenericResponse> ExitPost() {
 			(bool success, string output) = Actions.Exit();
+
 			return Ok(new GenericResponse(success, output));
 		}
 
@@ -89,6 +94,7 @@ namespace ArchiSteamFarm.IPC.Controllers.Api {
 		[ProducesResponseType(typeof(GenericResponse), 200)]
 		public ActionResult<GenericResponse> RestartPost() {
 			(bool success, string output) = Actions.Restart();
+
 			return Ok(new GenericResponse(success, output));
 		}
 

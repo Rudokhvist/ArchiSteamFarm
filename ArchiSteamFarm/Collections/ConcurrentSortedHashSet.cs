@@ -4,7 +4,7 @@
 //  / ___ \ | |  | (__ | | | || | ___) || |_|  __/| (_| || | | | | ||  _|| (_| || |   | | | | | |
 // /_/   \_\|_|   \___||_| |_||_||____/  \__|\___| \__,_||_| |_| |_||_|   \__,_||_|   |_| |_| |_|
 // 
-// Copyright 2015-2018 Łukasz "JustArchi" Domeradzki
+// Copyright 2015-2019 Łukasz "JustArchi" Domeradzki
 // Contact: JustArchi@JustArchi.net
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,7 +22,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 
 namespace ArchiSteamFarm.Collections {
@@ -198,9 +197,7 @@ namespace ArchiSteamFarm.Collections {
 			}
 		}
 
-		[SuppressMessage("ReSharper", "AssignNullToNotNullAttribute")]
 		void ICollection<T>.Add(T item) => Add(item);
-
 		IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
 		internal void ReplaceWith(IEnumerable<T> other) {
@@ -221,22 +218,22 @@ namespace ArchiSteamFarm.Collections {
 			public T Current => Enumerator.Current;
 
 			private readonly IEnumerator<T> Enumerator;
-			private readonly SemaphoreSlim SemaphoreSlim;
+			private readonly SemaphoreSlim Semaphore;
 
 			object IEnumerator.Current => Current;
 
-			internal ConcurrentEnumerator(IReadOnlyCollection<T> collection, SemaphoreSlim semaphoreSlim) {
-				if ((collection == null) || (semaphoreSlim == null)) {
-					throw new ArgumentNullException(nameof(collection) + " || " + nameof(semaphoreSlim));
+			internal ConcurrentEnumerator(IReadOnlyCollection<T> collection, SemaphoreSlim semaphore) {
+				if ((collection == null) || (semaphore == null)) {
+					throw new ArgumentNullException(nameof(collection) + " || " + nameof(semaphore));
 				}
 
-				SemaphoreSlim = semaphoreSlim;
-				semaphoreSlim.Wait();
+				Semaphore = semaphore;
+				semaphore.Wait();
 
 				Enumerator = collection.GetEnumerator();
 			}
 
-			public void Dispose() => SemaphoreSlim.Release();
+			public void Dispose() => Semaphore.Release();
 			public bool MoveNext() => Enumerator.MoveNext();
 			public void Reset() => Enumerator.Reset();
 		}

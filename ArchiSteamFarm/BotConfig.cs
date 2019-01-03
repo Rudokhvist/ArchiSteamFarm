@@ -4,7 +4,7 @@
 //  / ___ \ | |  | (__ | | | || | ___) || |_|  __/| (_| || | | | | ||  _|| (_| || |   | | | | | |
 // /_/   \_\|_|   \___||_| |_||_||____/  \__|\___| \__,_||_| |_| |_||_|   \__,_||_|   |_| |_| |_|
 // 
-// Copyright 2015-2018 Łukasz "JustArchi" Domeradzki
+// Copyright 2015-2019 Łukasz "JustArchi" Domeradzki
 // Contact: JustArchi@JustArchi.net
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -153,8 +153,10 @@ namespace ArchiSteamFarm {
 				}
 
 				string decryptedPassword = ArchiCryptoHelper.Decrypt(PasswordFormat, SteamPassword);
+
 				if (string.IsNullOrEmpty(decryptedPassword)) {
 					ASF.ArchiLogger.LogGenericError(string.Format(Strings.ErrorIsInvalid, nameof(SteamPassword)));
+
 					return null;
 				}
 
@@ -163,6 +165,7 @@ namespace ArchiSteamFarm {
 			set {
 				if (string.IsNullOrEmpty(value)) {
 					ASF.ArchiLogger.LogNullError(nameof(value));
+
 					return;
 				}
 
@@ -179,6 +182,7 @@ namespace ArchiSteamFarm {
 		[JsonProperty]
 		internal string SteamLogin {
 			get => _SteamLogin;
+
 			set {
 				IsSteamLoginSet = true;
 				_SteamLogin = value;
@@ -191,6 +195,7 @@ namespace ArchiSteamFarm {
 		[JsonProperty]
 		internal string SteamParentalCode {
 			get => _SteamParentalCode;
+
 			set {
 				IsSteamParentalCodeSet = true;
 				_SteamParentalCode = value;
@@ -200,6 +205,7 @@ namespace ArchiSteamFarm {
 		[JsonProperty]
 		internal string SteamPassword {
 			get => _SteamPassword;
+
 			set {
 				IsSteamPasswordSet = true;
 				_SteamPassword = value;
@@ -214,23 +220,15 @@ namespace ArchiSteamFarm {
 		[JsonProperty(PropertyName = SharedInfo.UlongCompatibilityStringPrefix + nameof(SteamMasterClanID), Required = Required.DisallowNull)]
 		private string SSteamMasterClanID {
 			get => SteamMasterClanID.ToString();
+
 			set {
 				if (string.IsNullOrEmpty(value) || !ulong.TryParse(value, out ulong result)) {
 					ASF.ArchiLogger.LogGenericError(string.Format(Strings.ErrorIsInvalid, nameof(SSteamMasterClanID)));
+
 					return;
 				}
 
 				SteamMasterClanID = result;
-			}
-		}
-
-		[JsonProperty]
-		private string SteamParentalPIN {
-			set {
-				if (string.IsNullOrEmpty(value) || (value != "0")) {
-					ASF.ArchiLogger.LogGenericWarning(string.Format(Strings.WarningDeprecated, nameof(SteamParentalPIN), nameof(SteamParentalCode)));
-					SteamParentalCode = string.IsNullOrEmpty(value) ? "0" : value;
-				}
 			}
 		}
 
@@ -291,6 +289,7 @@ namespace ArchiSteamFarm {
 		internal static async Task<BotConfig> Load(string filePath) {
 			if (string.IsNullOrEmpty(filePath)) {
 				ASF.ArchiLogger.LogNullError(nameof(filePath));
+
 				return null;
 			}
 
@@ -304,28 +303,34 @@ namespace ArchiSteamFarm {
 				botConfig = JsonConvert.DeserializeObject<BotConfig>(await RuntimeCompatibility.File.ReadAllTextAsync(filePath).ConfigureAwait(false));
 			} catch (Exception e) {
 				ASF.ArchiLogger.LogGenericException(e);
+
 				return null;
 			}
 
 			if (botConfig == null) {
 				ASF.ArchiLogger.LogNullError(nameof(botConfig));
+
 				return null;
 			}
 
 			(bool valid, string errorMessage) = botConfig.CheckValidation();
+
 			if (!valid) {
 				ASF.ArchiLogger.LogGenericError(errorMessage);
+
 				return null;
 			}
 
 			botConfig.ShouldSerializeEverything = false;
 			botConfig.ShouldSerializeSensitiveDetails = false;
+
 			return botConfig;
 		}
 
 		internal static async Task<bool> Write(string filePath, BotConfig botConfig) {
 			if (string.IsNullOrEmpty(filePath) || (botConfig == null)) {
 				ASF.ArchiLogger.LogNullError(nameof(filePath) + " || " + nameof(botConfig));
+
 				return false;
 			}
 
@@ -344,6 +349,7 @@ namespace ArchiSteamFarm {
 				}
 			} catch (Exception e) {
 				ASF.ArchiLogger.LogGenericException(e);
+
 				return false;
 			} finally {
 				WriteSemaphore.Release();
@@ -411,7 +417,8 @@ namespace ArchiSteamFarm {
 			SteamTradeMatcher = 2,
 			MatchEverything = 4,
 			DontAcceptBotTrades = 8,
-			All = AcceptDonations | SteamTradeMatcher | MatchEverything | DontAcceptBotTrades
+			MatchActively = 16,
+			All = AcceptDonations | SteamTradeMatcher | MatchEverything | DontAcceptBotTrades | MatchActively
 		}
 
 		// ReSharper disable UnusedMember.Global

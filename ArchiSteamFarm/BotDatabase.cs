@@ -4,7 +4,7 @@
 //  / ___ \ | |  | (__ | | | || | ___) || |_|  __/| (_| || | | | | ||  _|| (_| || |   | | | | | |
 // /_/   \_\|_|   \___||_| |_||_||____/  \__|\___| \__,_||_| |_| |_||_|   \__,_||_|   |_| |_| |_|
 // 
-// Copyright 2015-2018 Łukasz "JustArchi" Domeradzki
+// Copyright 2015-2019 Łukasz "JustArchi" Domeradzki
 // Contact: JustArchi@JustArchi.net
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -79,6 +79,7 @@ namespace ArchiSteamFarm {
 		internal async Task AddBlacklistedFromTradesSteamIDs(IReadOnlyCollection<ulong> steamIDs) {
 			if ((steamIDs == null) || (steamIDs.Count == 0)) {
 				ASF.ArchiLogger.LogNullError(nameof(steamIDs));
+
 				return;
 			}
 
@@ -90,6 +91,7 @@ namespace ArchiSteamFarm {
 		internal async Task AddGamesToRedeemInBackground(IOrderedDictionary games) {
 			if ((games == null) || (games.Count == 0)) {
 				ASF.ArchiLogger.LogNullError(nameof(games));
+
 				return;
 			}
 
@@ -114,6 +116,7 @@ namespace ArchiSteamFarm {
 		internal async Task AddIdlingBlacklistedAppIDs(IReadOnlyCollection<uint> appIDs) {
 			if ((appIDs == null) || (appIDs.Count == 0)) {
 				ASF.ArchiLogger.LogNullError(nameof(appIDs));
+
 				return;
 			}
 
@@ -125,6 +128,7 @@ namespace ArchiSteamFarm {
 		internal async Task AddIdlingPriorityAppIDs(IReadOnlyCollection<uint> appIDs) {
 			if ((appIDs == null) || (appIDs.Count == 0)) {
 				ASF.ArchiLogger.LogNullError(nameof(appIDs));
+
 				return;
 			}
 
@@ -133,20 +137,10 @@ namespace ArchiSteamFarm {
 			}
 		}
 
-		internal async Task CorrectMobileAuthenticatorDeviceID(string deviceID) {
-			if (string.IsNullOrEmpty(deviceID) || (MobileAuthenticator == null)) {
-				ASF.ArchiLogger.LogNullError(nameof(deviceID) + " || " + nameof(MobileAuthenticator));
-				return;
-			}
-
-			if (MobileAuthenticator.CorrectDeviceID(deviceID)) {
-				await Save().ConfigureAwait(false);
-			}
-		}
-
 		internal static async Task<BotDatabase> CreateOrLoad(string filePath) {
 			if (string.IsNullOrEmpty(filePath)) {
 				ASF.ArchiLogger.LogNullError(nameof(filePath));
+
 				return null;
 			}
 
@@ -160,15 +154,18 @@ namespace ArchiSteamFarm {
 				botDatabase = JsonConvert.DeserializeObject<BotDatabase>(await RuntimeCompatibility.File.ReadAllTextAsync(filePath).ConfigureAwait(false));
 			} catch (Exception e) {
 				ASF.ArchiLogger.LogGenericException(e);
+
 				return null;
 			}
 
 			if (botDatabase == null) {
 				ASF.ArchiLogger.LogNullError(nameof(botDatabase));
+
 				return null;
 			}
 
 			botDatabase.FilePath = filePath;
+
 			return botDatabase;
 		}
 
@@ -190,6 +187,7 @@ namespace ArchiSteamFarm {
 		internal bool IsBlacklistedFromIdling(uint appID) {
 			if (appID == 0) {
 				ASF.ArchiLogger.LogNullError(nameof(appID));
+
 				return false;
 			}
 
@@ -199,6 +197,7 @@ namespace ArchiSteamFarm {
 		internal bool IsBlacklistedFromTrades(ulong steamID) {
 			if (steamID == 0) {
 				ASF.ArchiLogger.LogNullError(nameof(steamID));
+
 				return false;
 			}
 
@@ -208,6 +207,7 @@ namespace ArchiSteamFarm {
 		internal bool IsPriorityIdling(uint appID) {
 			if (appID == 0) {
 				ASF.ArchiLogger.LogNullError(nameof(appID));
+
 				return false;
 			}
 
@@ -235,6 +235,7 @@ namespace ArchiSteamFarm {
 		internal async Task RemoveBlacklistedFromTradesSteamIDs(IReadOnlyCollection<ulong> steamIDs) {
 			if ((steamIDs == null) || (steamIDs.Count == 0)) {
 				ASF.ArchiLogger.LogNullError(nameof(steamIDs));
+
 				return;
 			}
 
@@ -246,6 +247,7 @@ namespace ArchiSteamFarm {
 		internal async Task RemoveGameToRedeemInBackground(string key) {
 			if (string.IsNullOrEmpty(key)) {
 				ASF.ArchiLogger.LogNullError(nameof(key));
+
 				return;
 			}
 
@@ -263,6 +265,7 @@ namespace ArchiSteamFarm {
 		internal async Task RemoveIdlingBlacklistedAppIDs(IReadOnlyCollection<uint> appIDs) {
 			if ((appIDs == null) || (appIDs.Count == 0)) {
 				ASF.ArchiLogger.LogNullError(nameof(appIDs));
+
 				return;
 			}
 
@@ -274,6 +277,7 @@ namespace ArchiSteamFarm {
 		internal async Task RemoveIdlingPriorityAppIDs(IReadOnlyCollection<uint> appIDs) {
 			if ((appIDs == null) || (appIDs.Count == 0)) {
 				ASF.ArchiLogger.LogNullError(nameof(appIDs));
+
 				return;
 			}
 
@@ -306,8 +310,10 @@ namespace ArchiSteamFarm {
 			}
 
 			string json = JsonConvert.SerializeObject(this);
+
 			if (string.IsNullOrEmpty(json)) {
 				ASF.ArchiLogger.LogNullError(nameof(json));
+
 				return;
 			}
 
@@ -334,5 +340,15 @@ namespace ArchiSteamFarm {
 				FileSemaphore.Release();
 			}
 		}
+
+		// ReSharper disable UnusedMember.Global
+		public bool ShouldSerializeBlacklistedFromTradesSteamIDs() => BlacklistedFromTradesSteamIDs.Count > 0;
+		public bool ShouldSerializeGamesToRedeemInBackground() => HasGamesToRedeemInBackground;
+		public bool ShouldSerializeIdlingBlacklistedAppIDs() => IdlingBlacklistedAppIDs.Count > 0;
+		public bool ShouldSerializeIdlingPriorityAppIDs() => IdlingPriorityAppIDs.Count > 0;
+		public bool ShouldSerializeLoginKey() => !string.IsNullOrEmpty(LoginKey);
+		public bool ShouldSerializeMobileAuthenticator() => MobileAuthenticator != null;
+
+		// ReSharper restore UnusedMember.Global
 	}
 }

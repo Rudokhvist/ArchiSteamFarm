@@ -466,20 +466,8 @@ StackTrace:
   <data name="BotLootingMasterNotDefined" xml:space="preserve">
     <value>Ruilaanbod kon niet verzonden worden omdat er geen gebruiker is toegewezen met master permissies!</value>
   </data>
-  <data name="BotLootingNoLootableTypes" xml:space="preserve">
-    <value>Je hebt geen lootable types ingesteld!</value>
-  </data>
-  <data name="BotLootingNowDisabled" xml:space="preserve">
-    <value>Looting is nu uitgeschakeld!</value>
-  </data>
-  <data name="BotLootingNowEnabled" xml:space="preserve">
-    <value>Looting is nu ingeschakeld!</value>
-  </data>
   <data name="BotLootingSuccess" xml:space="preserve">
     <value>Ruilaanbod succesvol verzonden!</value>
-  </data>
-  <data name="BotLootingTemporarilyDisabled" xml:space="preserve">
-    <value>Looting is tijdelijk uitgeschakeld!</value>
   </data>
   <data name="BotSendingTradeToYourself" xml:space="preserve">
     <value>Je kan jezelf geen ruil aanbieden!</value>
@@ -667,5 +655,28 @@ StackTrace:
   </data>
   <data name="BotHasNoWallet" xml:space="preserve">
     <value>Deze bot heeft geen portemonneesaldo.</value>
+  </data>
+  <data name="BotLevel" xml:space="preserve">
+    <value>Bot is level {0}.</value>
+    <comment>{0} will be replaced by bot's level</comment>
+  </data>
+  <data name="ActivelyMatchingItems" xml:space="preserve">
+    <value>Steam-items matchen, ronde #{0}...</value>
+    <comment>{0} will be replaced by round number</comment>
+  </data>
+  <data name="DoneActivelyMatchingItems" xml:space="preserve">
+    <value>Steam-items matchen gereed, ronde #{0}.</value>
+    <comment>{0} will be replaced by round number</comment>
+  </data>
+  <data name="ErrorAborted" xml:space="preserve">
+    <value>Afgebroken!</value>
+  </data>
+  <data name="ActivelyMatchingItemsRound" xml:space="preserve">
+    <value>Deze ronde zijn in totaal {0} sets gematcht.</value>
+    <comment>{0} will be replaced by number of sets traded</comment>
+  </data>
+  <data name="WarningExcessiveBotsCount" xml:space="preserve">
+    <value>Je gebruikt meer botaccounts dan de door ons aanbevolen limiet ({0}). Hou er rekening mee dat deze configuratie niet wordt ondersteund en kan leiden tot verschillende Steam-gerelateerde problemen, waaronder het opschorten van accounts. Bekijk de FAQ voor meer details.</value>
+    <comment>{0} will be replaced by our maximum recommended bots count (number)</comment>
   </data>
 </root>

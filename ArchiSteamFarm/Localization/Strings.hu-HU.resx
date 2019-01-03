@@ -262,7 +262,10 @@ StackTrace: {2}</value>
     <value>Add meg a Steames felhasználó neved: </value>
     <comment>Please note that this translation should end with space</comment>
   </data>
-  
+  <data name="UserInputSteamParentalCode" xml:space="preserve">
+    <value>Add meg a Steam Családi Nézet kódot: </value>
+    <comment>Please note that this translation should end with space</comment>
+  </data>
   <data name="UserInputSteamPassword" xml:space="preserve">
     <value>Add meg a Steames felhasználód jelszavát: </value>
     <comment>Please note that this translation should end with space</comment>
@@ -335,7 +338,9 @@ StackTrace: {2}</value>
   <data name="IdlingStopped" xml:space="preserve">
     <value>Farmolás leállítva!</value>
   </data>
-  
+  <data name="IgnoredPermanentPauseEnabled" xml:space="preserve">
+    <value>Kérés figyelmen kívül hagyása, mivel az állandó szünet aktív!</value>
+  </data>
   <data name="NothingToIdle" xml:space="preserve">
     <value>Ezen az accounton nincs mit farmolni!</value>
   </data>
@@ -459,20 +464,8 @@ StackTrace: {2}</value>
   <data name="BotLootingMasterNotDefined" xml:space="preserve">
     <value>A cserét nem sikerült elküldeni, mert nincs definiált felhasználó a mester engedélyével!</value>
   </data>
-  <data name="BotLootingNoLootableTypes" xml:space="preserve">
-    <value>Nincsenek meghatározott begyűjtési típusaid!</value>
-  </data>
-  <data name="BotLootingNowDisabled" xml:space="preserve">
-    <value>A begyűjtés le lett tiltva!</value>
-  </data>
-  <data name="BotLootingNowEnabled" xml:space="preserve">
-    <value>A begyűjtés engedélyezve van!</value>
-  </data>
   <data name="BotLootingSuccess" xml:space="preserve">
     <value>Csereajánlat sikeresen elküldve!</value>
-  </data>
-  <data name="BotLootingTemporarilyDisabled" xml:space="preserve">
-    <value>A begyűjtés átmenetileg le van tiltva!</value>
   </data>
   <data name="BotSendingTradeToYourself" xml:space="preserve">
     <value>Nem tudsz cserét küldeni magadnak!</value>
@@ -651,7 +644,34 @@ StackTrace: {2}</value>
     <value>Megoldásra került: {0} hiba.</value>
     <comment>{0} will be replaced by the bug's name provided by ASF</comment>
   </data>
-  
-  
+  <data name="TargetBotNotConnected" xml:space="preserve">
+    <value>A kiválasztott bot nincs csatlakoztatva!</value>
+  </data>
+  <data name="BotWalletBalance" xml:space="preserve">
+    <value>Egyenleg: {0} {1}</value>
+    <comment>{0} will be replaced by wallet balance value, {1} will be replaced by currency name</comment>
+  </data>
+  <data name="BotHasNoWallet" xml:space="preserve">
+    <value>A botnak nincs pénztárcája.</value>
+  </data>
+  <data name="BotLevel" xml:space="preserve">
+    <value>A bot szintje: {0}.</value>
+    <comment>{0} will be replaced by bot's level</comment>
+  </data>
+  <data name="ActivelyMatchingItems" xml:space="preserve">
+    <value>Steam tárgyak egyeztetése #{0}...</value>
+    <comment>{0} will be replaced by round number</comment>
+  </data>
+  <data name="DoneActivelyMatchingItems" xml:space="preserve">
+    <value>Sikeres Steam tárgy egyeztetés. #{0}.</value>
+    <comment>{0} will be replaced by round number</comment>
+  </data>
+  <data name="ErrorAborted" xml:space="preserve">
+    <value>Megszakítva!</value>
+  </data>
+  <data name="ActivelyMatchingItemsRound" xml:space="preserve">
+    <value>Összesen {0} szett cserélve.</value>
+    <comment>{0} will be replaced by number of sets traded</comment>
+  </data>
   
 </root>

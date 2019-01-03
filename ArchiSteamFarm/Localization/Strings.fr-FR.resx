@@ -466,20 +466,8 @@ StackTrace :
   <data name="BotLootingMasterNotDefined" xml:space="preserve">
     <value>L'offre d'échange n'a pas pu être envoyée car il n'y a pas d'utilisateur avec une autorisation Master définie !</value>
   </data>
-  <data name="BotLootingNoLootableTypes" xml:space="preserve">
-    <value>Vous n'avez aucun type d'objets à récupérer de configuré !</value>
-  </data>
-  <data name="BotLootingNowDisabled" xml:space="preserve">
-    <value>La récupération des cartes est maintenant désactivée !</value>
-  </data>
-  <data name="BotLootingNowEnabled" xml:space="preserve">
-    <value>La récupération des cartes est maintenant activée !</value>
-  </data>
   <data name="BotLootingSuccess" xml:space="preserve">
     <value>Offre d'échange envoyée avec succès !</value>
-  </data>
-  <data name="BotLootingTemporarilyDisabled" xml:space="preserve">
-    <value>La récupération des cartes est temporairement désactivée !</value>
   </data>
   <data name="BotSendingTradeToYourself" xml:space="preserve">
     <value>Vous ne pouvez échanger avec vous-même !</value>
@@ -668,4 +656,24 @@ StackTrace :
   <data name="BotHasNoWallet" xml:space="preserve">
     <value>Le bot n'a pas de portefeuille.</value>
   </data>
+  <data name="BotLevel" xml:space="preserve">
+    <value>Le bot a le niveau {0}.</value>
+    <comment>{0} will be replaced by bot's level</comment>
+  </data>
+  <data name="ActivelyMatchingItems" xml:space="preserve">
+    <value>En train de match des Items, round #{0}...</value>
+    <comment>{0} will be replaced by round number</comment>
+  </data>
+  <data name="DoneActivelyMatchingItems" xml:space="preserve">
+    <value>Fini de match des Items, round #{0}.</value>
+    <comment>{0} will be replaced by round number</comment>
+  </data>
+  <data name="ErrorAborted" xml:space="preserve">
+    <value>Annulé !</value>
+  </data>
+  <data name="ActivelyMatchingItemsRound" xml:space="preserve">
+    <value>{0} sets ont été matché pendant ce round.</value>
+    <comment>{0} will be replaced by number of sets traded</comment>
+  </data>
+  
 </root>

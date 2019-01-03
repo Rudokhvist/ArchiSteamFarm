@@ -4,7 +4,7 @@
 //  / ___ \ | |  | (__ | | | || | ___) || |_|  __/| (_| || | | | | ||  _|| (_| || |   | | | | | |
 // /_/   \_\|_|   \___||_| |_||_||____/  \__|\___| \__,_||_| |_| |_||_|   \__,_||_|   |_| |_| |_|
 // 
-// Copyright 2015-2018 Łukasz "JustArchi" Domeradzki
+// Copyright 2015-2019 Łukasz "JustArchi" Domeradzki
 // Contact: JustArchi@JustArchi.net
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -83,6 +83,15 @@ namespace ArchiSteamFarm {
 		}
 #pragma warning restore 1998
 
+		internal static class HashCode {
+			internal static int Combine<T1, T2, T3>(T1 value1, T2 value2, T3 value3) =>
+#if NETFRAMEWORK
+				(value1, value2, value3).GetHashCode();
+#else
+				System.HashCode.Combine(value1, value2, value3);
+#endif
+		}
+
 		internal static class Path {
 			internal static string GetRelativePath(string relativeTo, string path) {
 #if NETFRAMEWORK
@@ -101,13 +110,10 @@ namespace ArchiSteamFarm {
 		}
 
 #if NETFRAMEWORK
-		internal static void TrimExcess<T1, T2>(this Dictionary<T1, T2> _) { } // no-op
-#endif
-
-#if NETFRAMEWORK
 		internal static async Task<WebSocketReceiveResult> ReceiveAsync(this WebSocket webSocket, byte[] buffer, CancellationToken cancellationToken) => await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken).ConfigureAwait(false);
 		internal static async Task SendAsync(this WebSocket webSocket, byte[] buffer, WebSocketMessageType messageType, bool endOfMessage, CancellationToken cancellationToken) => await webSocket.SendAsync(new ArraySegment<byte>(buffer), messageType, endOfMessage, cancellationToken).ConfigureAwait(false);
 		internal static string[] Split(this string text, char separator, StringSplitOptions options = StringSplitOptions.None) => text.Split(new[] { separator }, options);
+		internal static void TrimExcess<T1, T2>(this Dictionary<T1, T2> _) { } // no-op
 #endif
 	}
 }

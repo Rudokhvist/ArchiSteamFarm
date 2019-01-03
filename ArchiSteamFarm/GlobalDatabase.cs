@@ -4,7 +4,7 @@
 //  / ___ \ | |  | (__ | | | || | ___) || |_|  __/| (_| || | | | | ||  _|| (_| || |   | | | | | |
 // /_/   \_\|_|   \___||_| |_||_||____/  \__|\___| \__,_||_| |_| |_||_|   \__,_||_|   |_| |_| |_|
 // 
-// Copyright 2015-2018 Łukasz "JustArchi" Domeradzki
+// Copyright 2015-2019 Łukasz "JustArchi" Domeradzki
 // Contact: JustArchi@JustArchi.net
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -72,6 +72,7 @@ namespace ArchiSteamFarm {
 		internal static async Task<GlobalDatabase> CreateOrLoad(string filePath) {
 			if (string.IsNullOrEmpty(filePath)) {
 				ASF.ArchiLogger.LogNullError(nameof(filePath));
+
 				return null;
 			}
 
@@ -85,21 +86,25 @@ namespace ArchiSteamFarm {
 				globalDatabase = JsonConvert.DeserializeObject<GlobalDatabase>(await RuntimeCompatibility.File.ReadAllTextAsync(filePath).ConfigureAwait(false));
 			} catch (Exception e) {
 				ASF.ArchiLogger.LogGenericException(e);
+
 				return null;
 			}
 
 			if (globalDatabase == null) {
 				ASF.ArchiLogger.LogNullError(nameof(globalDatabase));
+
 				return null;
 			}
 
 			globalDatabase.FilePath = filePath;
+
 			return globalDatabase;
 		}
 
 		internal HashSet<uint> GetPackageIDs(uint appID) {
 			if (appID == 0) {
 				ASF.ArchiLogger.LogNullError(nameof(appID));
+
 				return null;
 			}
 
@@ -109,6 +114,7 @@ namespace ArchiSteamFarm {
 		internal async Task RefreshPackages(Bot bot, IReadOnlyDictionary<uint, uint> packages) {
 			if ((bot == null) || (packages == null) || (packages.Count == 0)) {
 				ASF.ArchiLogger.LogNullError(nameof(bot) + " || " + nameof(packages));
+
 				return;
 			}
 
@@ -122,6 +128,7 @@ namespace ArchiSteamFarm {
 				}
 
 				Dictionary<uint, (uint ChangeNumber, HashSet<uint> AppIDs)> packagesData = await bot.GetPackagesData(packageIDs).ConfigureAwait(false);
+
 				if ((packagesData == null) || (packagesData.Count == 0)) {
 					return;
 				}
@@ -149,8 +156,10 @@ namespace ArchiSteamFarm {
 
 		private async Task Save() {
 			string json = JsonConvert.SerializeObject(this);
+
 			if (string.IsNullOrEmpty(json)) {
 				ASF.ArchiLogger.LogNullError(nameof(json));
+
 				return;
 			}
 
@@ -173,5 +182,12 @@ namespace ArchiSteamFarm {
 				FileSemaphore.Release();
 			}
 		}
+
+		// ReSharper disable UnusedMember.Global
+		public bool ShouldSerializeCellID() => CellID != 0;
+		public bool ShouldSerializePackagesData() => PackagesData.Count > 0;
+		public bool ShouldSerializeServerListProvider() => ServerListProvider.ShouldSerializeServerRecords();
+
+		// ReSharper restore UnusedMember.Global
 	}
 }

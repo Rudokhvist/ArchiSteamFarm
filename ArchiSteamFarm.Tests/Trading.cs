@@ -4,7 +4,7 @@
 //  / ___ \ | |  | (__ | | | || | ___) || |_|  __/| (_| || | | | | ||  _|| (_| || |   | | | | | |
 // /_/   \_\|_|   \___||_| |_||_||____/  \__|\___| \__,_||_| |_| |_||_|   \__,_||_|   |_| |_| |_|
 // 
-// Copyright 2015-2018 Łukasz "JustArchi" Domeradzki
+// Copyright 2015-2019 Łukasz "JustArchi" Domeradzki
 // Contact: JustArchi@JustArchi.net
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -263,6 +263,7 @@ namespace ArchiSteamFarm.Tests {
 				CreateItem(2),
 				CreateItem(5)
 			};
+
 			HashSet<Steam.Asset> itemsToReceive = new HashSet<Steam.Asset> {
 				CreateItem(3),
 				CreateItem(4)

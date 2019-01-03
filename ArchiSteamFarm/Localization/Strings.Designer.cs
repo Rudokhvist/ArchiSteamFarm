@@ -70,6 +70,24 @@ namespace ArchiSteamFarm.Localization {
         }
         
         /// <summary>
+        /// Wyszukuje zlokalizowany ciąg podobny do ciągu Matching Steam items, round #{0}....
+        /// </summary>
+        internal static string ActivelyMatchingItems {
+            get {
+                return ResourceManager.GetString("ActivelyMatchingItems", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        /// Wyszukuje zlokalizowany ciąg podobny do ciągu Matched a total of {0} sets this round..
+        /// </summary>
+        internal static string ActivelyMatchingItemsRound {
+            get {
+                return ResourceManager.GetString("ActivelyMatchingItemsRound", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         /// Wyszukuje zlokalizowany ciąg podobny do ciągu ASF will automatically check for new versions every {0}..
         /// </summary>
         internal static string AutoUpdateCheckInfo {
@@ -331,6 +349,15 @@ namespace ArchiSteamFarm.Localization {
         }
         
         /// <summary>
+        /// Wyszukuje zlokalizowany ciąg podobny do ciągu Bot has level {0}..
+        /// </summary>
+        internal static string BotLevel {
+            get {
+                return ResourceManager.GetString("BotLevel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         /// Wyszukuje zlokalizowany ciąg podobny do ciągu Logged off of Steam: {0}.
         /// </summary>
         internal static string BotLoggedOff {
@@ -385,47 +412,11 @@ namespace ArchiSteamFarm.Localization {
         }
         
         /// <summary>
-        /// Wyszukuje zlokalizowany ciąg podobny do ciągu You don&apos;t have any lootable types set!.
-        /// </summary>
-        internal static string BotLootingNoLootableTypes {
-            get {
-                return ResourceManager.GetString("BotLootingNoLootableTypes", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        /// Wyszukuje zlokalizowany ciąg podobny do ciągu Looting is now disabled!.
-        /// </summary>
-        internal static string BotLootingNowDisabled {
-            get {
-                return ResourceManager.GetString("BotLootingNowDisabled", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        /// Wyszukuje zlokalizowany ciąg podobny do ciągu Looting is now enabled!.
-        /// </summary>
-        internal static string BotLootingNowEnabled {
-            get {
-                return ResourceManager.GetString("BotLootingNowEnabled", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         /// Wyszukuje zlokalizowany ciąg podobny do ciągu Trade offer sent successfully!.
         /// </summary>
         internal static string BotLootingSuccess {
             get {
                 return ResourceManager.GetString("BotLootingSuccess", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        /// Wyszukuje zlokalizowany ciąg podobny do ciągu Looting is temporarily disabled!.
-        /// </summary>
-        internal static string BotLootingTemporarilyDisabled {
-            get {
-                return ResourceManager.GetString("BotLootingTemporarilyDisabled", resourceCulture);
             }
         }
         
@@ -755,11 +746,29 @@ namespace ArchiSteamFarm.Localization {
         }
         
         /// <summary>
+        /// Wyszukuje zlokalizowany ciąg podobny do ciągu Done matching Steam items, round #{0}..
+        /// </summary>
+        internal static string DoneActivelyMatchingItems {
+            get {
+                return ResourceManager.GetString("DoneActivelyMatchingItems", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         /// Wyszukuje zlokalizowany ciąg podobny do ciągu Done clearing Steam discovery queue #{0}..
         /// </summary>
         internal static string DoneClearingDiscoveryQueue {
             get {
                 return ResourceManager.GetString("DoneClearingDiscoveryQueue", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        /// Wyszukuje zlokalizowany ciąg podobny do ciągu Aborted!.
+        /// </summary>
+        internal static string ErrorAborted {
+            get {
+                return ResourceManager.GetString("ErrorAborted", resourceCulture);
             }
         }
         
@@ -1410,6 +1419,15 @@ namespace ArchiSteamFarm.Localization {
         internal static string WarningDeprecated {
             get {
                 return ResourceManager.GetString("WarningDeprecated", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        /// Wyszukuje zlokalizowany ciąg podobny do ciągu You&apos;re running more personal bot accounts than our upper recommended limit ({0}). Be advised that this setup is not supported and might cause various Steam-related issues, including account suspensions. Check out the FAQ for more details..
+        /// </summary>
+        internal static string WarningExcessiveBotsCount {
+            get {
+                return ResourceManager.GetString("WarningExcessiveBotsCount", resourceCulture);
             }
         }
         

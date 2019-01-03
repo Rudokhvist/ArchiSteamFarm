@@ -4,7 +4,7 @@
 //  / ___ \ | |  | (__ | | | || | ___) || |_|  __/| (_| || | | | | ||  _|| (_| || |   | | | | | |
 // /_/   \_\|_|   \___||_| |_||_||____/  \__|\___| \__,_||_| |_| |_||_|   \__,_||_|   |_| |_| |_|
 // 
-// Copyright 2015-2018 Łukasz "JustArchi" Domeradzki
+// Copyright 2015-2019 Łukasz "JustArchi" Domeradzki
 // Contact: JustArchi@JustArchi.net
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -41,6 +41,7 @@ namespace ArchiSteamFarm.IPC.Controllers.Api {
 		public async Task<ActionResult<GenericResponse<string>>> CommandPost(string command) {
 			if (string.IsNullOrEmpty(command)) {
 				ASF.ArchiLogger.LogNullError(nameof(command));
+
 				return BadRequest(new GenericResponse<string>(false, string.Format(Strings.ErrorIsEmpty, nameof(command))));
 			}
 
@@ -49,6 +50,7 @@ namespace ArchiSteamFarm.IPC.Controllers.Api {
 			}
 
 			Bot targetBot = Bot.Bots.OrderBy(bot => bot.Key).Select(bot => bot.Value).FirstOrDefault();
+
 			if (targetBot == null) {
 				return BadRequest(new GenericResponse<string>(false, Strings.ErrorNoBotsDefined));
 			}
@@ -58,6 +60,7 @@ namespace ArchiSteamFarm.IPC.Controllers.Api {
 			}
 
 			string response = await targetBot.Commands.Response(Program.GlobalConfig.SteamOwnerID, command).ConfigureAwait(false);
+
 			return Ok(new GenericResponse<string>(response));
 		}
 	}

@@ -4,7 +4,7 @@
 //  / ___ \ | |  | (__ | | | || | ___) || |_|  __/| (_| || | | | | ||  _|| (_| || |   | | | | | |
 // /_/   \_\|_|   \___||_| |_||_||____/  \__|\___| \__,_||_| |_| |_||_|   \__,_||_|   |_| |_| |_|
 // 
-// Copyright 2015-2018 Łukasz "JustArchi" Domeradzki
+// Copyright 2015-2019 Łukasz "JustArchi" Domeradzki
 // Contact: JustArchi@JustArchi.net
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -57,6 +57,7 @@ namespace ArchiSteamFarm.IPC.Middleware {
 		public async Task InvokeAsync(HttpContext context) {
 			if (context == null) {
 				ASF.ArchiLogger.LogNullError(nameof(context));
+
 				return;
 			}
 
@@ -64,6 +65,7 @@ namespace ArchiSteamFarm.IPC.Middleware {
 
 			if (authenticationStatus != HttpStatusCode.OK) {
 				await context.Response.Generate(authenticationStatus).ConfigureAwait(false);
+
 				return;
 			}
 
@@ -73,6 +75,7 @@ namespace ArchiSteamFarm.IPC.Middleware {
 		private static async Task<HttpStatusCode> GetAuthenticationStatus(HttpContext context) {
 			if (context == null) {
 				ASF.ArchiLogger.LogNullError(nameof(context));
+
 				return HttpStatusCode.InternalServerError;
 			}
 

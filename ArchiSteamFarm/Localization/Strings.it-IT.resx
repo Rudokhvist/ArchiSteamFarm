@@ -464,20 +464,8 @@
   <data name="BotLootingMasterNotDefined" xml:space="preserve">
     <value>L'offerta di scambio non può essere inviata perchè non c'è nessun botmaster definito!</value>
   </data>
-  <data name="BotLootingNoLootableTypes" xml:space="preserve">
-    <value>Non hai configurato il tipo di oggetti per il loot!</value>
-  </data>
-  <data name="BotLootingNowDisabled" xml:space="preserve">
-    <value>Looting è ora disabilitato!</value>
-  </data>
-  <data name="BotLootingNowEnabled" xml:space="preserve">
-    <value>Looting è ora abilitato!</value>
-  </data>
   <data name="BotLootingSuccess" xml:space="preserve">
     <value>Offerta di scambio inviata con successo!</value>
-  </data>
-  <data name="BotLootingTemporarilyDisabled" xml:space="preserve">
-    <value>Looting temporaneamente disabilitato!</value>
   </data>
   <data name="BotSendingTradeToYourself" xml:space="preserve">
     <value>Non puoi inviare una richiesta di scambio a te stesso!</value>
@@ -666,4 +654,24 @@
   <data name="BotHasNoWallet" xml:space="preserve">
     <value>Il bot non ha il portafoglio.</value>
   </data>
+  <data name="BotLevel" xml:space="preserve">
+    <value>Il Bot ha il livello {0}.</value>
+    <comment>{0} will be replaced by bot's level</comment>
+  </data>
+  <data name="ActivelyMatchingItems" xml:space="preserve">
+    <value>Elementi Corrispondenza Steam, round #{0}...</value>
+    <comment>{0} will be replaced by round number</comment>
+  </data>
+  <data name="DoneActivelyMatchingItems" xml:space="preserve">
+    <value>Elementi corrispondenza Steam fatta, round #{0}.</value>
+    <comment>{0} will be replaced by round number</comment>
+  </data>
+  <data name="ErrorAborted" xml:space="preserve">
+    <value>Abortito!</value>
+  </data>
+  <data name="ActivelyMatchingItemsRound" xml:space="preserve">
+    <value>Abbinati un totale di {0} set questo round.</value>
+    <comment>{0} will be replaced by number of sets traded</comment>
+  </data>
+  
 </root>

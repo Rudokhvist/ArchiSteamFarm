@@ -465,20 +465,8 @@ Trazo de pila:
   <data name="BotLootingMasterNotDefined" xml:space="preserve">
     <value>¡El intercambio no ha podido enviarse porque no hay ningún usuario con permisos de "master" definidos!</value>
   </data>
-  <data name="BotLootingNoLootableTypes" xml:space="preserve">
-    <value>¡No tienes ningún tipo looteable configurado!</value>
-  </data>
-  <data name="BotLootingNowDisabled" xml:space="preserve">
-    <value>¡El looteo (obtención repetitiva de un item) está ahora desactivado!</value>
-  </data>
-  <data name="BotLootingNowEnabled" xml:space="preserve">
-    <value>¡El looteo (obtención repetitiva de un item) está ahora activado!</value>
-  </data>
   <data name="BotLootingSuccess" xml:space="preserve">
     <value>¡Oferta de intercambio enviada con éxito!</value>
-  </data>
-  <data name="BotLootingTemporarilyDisabled" xml:space="preserve">
-    <value>¡El looteo (obtención repetitiva de un item) está temporalmente desactivado!</value>
   </data>
   <data name="BotSendingTradeToYourself" xml:space="preserve">
     <value>¡No puedes enviarte una petición de intercambio a ti mismo!</value>
@@ -666,5 +654,28 @@ Trazo de pila:
   </data>
   <data name="BotHasNoWallet" xml:space="preserve">
     <value>El bot no tiene cartera.</value>
+  </data>
+  <data name="BotLevel" xml:space="preserve">
+    <value>Nivel del bot {0}.</value>
+    <comment>{0} will be replaced by bot's level</comment>
+  </data>
+  <data name="ActivelyMatchingItems" xml:space="preserve">
+    <value>Buscando coincidencias en items de Steam, ronda #{0}...</value>
+    <comment>{0} will be replaced by round number</comment>
+  </data>
+  <data name="DoneActivelyMatchingItems" xml:space="preserve">
+    <value>Finalizada búsqueda de coincidencias en items de Steam, ronda #{0}.</value>
+    <comment>{0} will be replaced by round number</comment>
+  </data>
+  <data name="ErrorAborted" xml:space="preserve">
+    <value>Cancelado!</value>
+  </data>
+  <data name="ActivelyMatchingItemsRound" xml:space="preserve">
+    <value>Se emparejó un total de {0} sets durante esta ronda.</value>
+    <comment>{0} will be replaced by number of sets traded</comment>
+  </data>
+  <data name="WarningExcessiveBotsCount" xml:space="preserve">
+    <value>Se están ejecutando mas cuentas bots que nuestro limite recomendado ({0}). Tenga en cuenta que esta configuración no es compatible y puede causar varios problemas relacionados a steam, incluyendo suspensiones de cuenta. Revisa el FAQ para más detalles.</value>
+    <comment>{0} will be replaced by our maximum recommended bots count (number)</comment>
   </data>
 </root>

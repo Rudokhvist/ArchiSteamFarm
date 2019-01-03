@@ -4,7 +4,7 @@
 //  / ___ \ | |  | (__ | | | || | ___) || |_|  __/| (_| || | | | | ||  _|| (_| || |   | | | | | |
 // /_/   \_\|_|   \___||_| |_||_||____/  \__|\___| \__,_||_| |_| |_||_|   \__,_||_|   |_| |_| |_|
 // 
-// Copyright 2015-2018 Łukasz "JustArchi" Domeradzki
+// Copyright 2015-2019 Łukasz "JustArchi" Domeradzki
 // Contact: JustArchi@JustArchi.net
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -42,6 +42,7 @@ namespace ArchiSteamFarm.NLog {
 			}
 
 			bool reload = false;
+
 			foreach (LoggingRule rule in LogManager.Configuration.LoggingRules.Where(rule => rule.IsLoggingEnabledForLevel(LogLevel.Debug) && !rule.IsLoggingEnabledForLevel(LogLevel.Trace))) {
 				rule.EnableLoggingForLevel(LogLevel.Trace);
 				reload = true;
@@ -57,6 +58,7 @@ namespace ArchiSteamFarm.NLog {
 				IsUsingCustomConfiguration = true;
 				InitConsoleLoggers();
 				LogManager.ConfigurationChanged += OnConfigurationChanged;
+
 				return;
 			}
 
@@ -89,7 +91,6 @@ namespace ArchiSteamFarm.NLog {
 			HistoryTarget historyTarget = LogManager.Configuration.AllTargets.OfType<HistoryTarget>().FirstOrDefault();
 
 			if ((historyTarget == null) && !IsUsingCustomConfiguration) {
-				// TODO: We could use some nice HTML layout for this
 				historyTarget = new HistoryTarget("History") {
 					Layout = GeneralLayout,
 					MaxCount = 20
@@ -154,6 +155,7 @@ namespace ArchiSteamFarm.NLog {
 		private static void OnConfigurationChanged(object sender, LoggingConfigurationChangedEventArgs e) {
 			if ((sender == null) || (e == null)) {
 				ASF.ArchiLogger.LogNullError(nameof(sender) + " || " + nameof(e));
+
 				return;
 			}
 

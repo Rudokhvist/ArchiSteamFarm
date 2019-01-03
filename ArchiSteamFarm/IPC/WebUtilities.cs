@@ -4,7 +4,7 @@
 //  / ___ \ | |  | (__ | | | || | ___) || |_|  __/| (_| || | | | | ||  _|| (_| || |   | | | | | |
 // /_/   \_\|_|   \___||_| |_||_||____/  \__|\___| \__,_||_| |_| |_||_|   \__,_||_|   |_| |_| |_|
 // 
-// Copyright 2015-2018 Łukasz "JustArchi" Domeradzki
+// Copyright 2015-2019 Łukasz "JustArchi" Domeradzki
 // Contact: JustArchi@JustArchi.net
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,6 +30,7 @@ namespace ArchiSteamFarm.IPC {
 		internal static async Task Generate(this HttpResponse httpResponse, HttpStatusCode statusCode) {
 			if (httpResponse == null) {
 				ASF.ArchiLogger.LogNullError(nameof(httpResponse));
+
 				return;
 			}
 
@@ -42,6 +43,7 @@ namespace ArchiSteamFarm.IPC {
 		internal static string GetUnifiedName(this Type type) {
 			if (type == null) {
 				ASF.ArchiLogger.LogNullError(nameof(type));
+
 				return null;
 			}
 
@@ -51,10 +53,12 @@ namespace ArchiSteamFarm.IPC {
 		internal static Type ParseType(string typeText) {
 			if (string.IsNullOrEmpty(typeText)) {
 				ASF.ArchiLogger.LogNullError(nameof(typeText));
+
 				return null;
 			}
 
 			Type targetType = Type.GetType(typeText);
+
 			if (targetType != null) {
 				return targetType;
 			}

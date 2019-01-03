@@ -4,7 +4,7 @@
 //  / ___ \ | |  | (__ | | | || | ___) || |_|  __/| (_| || | | | | ||  _|| (_| || |   | | | | | |
 // /_/   \_\|_|   \___||_| |_||_||____/  \__|\___| \__,_||_| |_| |_||_|   \__,_||_|   |_| |_| |_|
 // 
-// Copyright 2015-2018 Łukasz "JustArchi" Domeradzki
+// Copyright 2015-2019 Łukasz "JustArchi" Domeradzki
 // Contact: JustArchi@JustArchi.net
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -42,6 +42,7 @@ namespace ArchiSteamFarm.IPC.Controllers.Api {
 		public ActionResult<GenericResponse<TypeResponse>> TypeGet(string type) {
 			if (string.IsNullOrEmpty(type)) {
 				ASF.ArchiLogger.LogNullError(nameof(type));
+
 				return BadRequest(new GenericResponse<TypeResponse>(false, string.Format(Strings.ErrorIsEmpty, nameof(type))));
 			}
 
@@ -85,6 +86,7 @@ namespace ArchiSteamFarm.IPC.Controllers.Api {
 			TypeResponse.TypeProperties properties = new TypeResponse.TypeProperties(baseType, customAttributes.Count > 0 ? customAttributes : null, underlyingType);
 
 			TypeResponse response = new TypeResponse(body, properties);
+
 			return Ok(new GenericResponse<TypeResponse>(response));
 		}
 	}

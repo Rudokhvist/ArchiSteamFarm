@@ -6,7 +6,7 @@ TESTS_PROJECT="${MAIN_PROJECT}.Tests"
 SOLUTION="${MAIN_PROJECT}.sln"
 CONFIGURATION="Release"
 OUT="out/source"
-TARGET_FRAMEWORK="netcoreapp2.1"
+TARGET_FRAMEWORK="netcoreapp2.2"
 
 CLEAN=0
 LINK_DURING_PUBLISH=1
@@ -45,7 +45,7 @@ fi
 dotnet --info
 
 if [[ "$PULL" -eq 1 && -d ".git" ]] && hash git 2>/dev/null; then
-	git pull --recurse-submodules || true
+	git pull --recurse-submodules=on-demand || true
 fi
 
 if [[ ! -f "$SOLUTION" ]]; then
@@ -56,11 +56,17 @@ fi
 if [[ -f "ASF-ui/package.json" ]] && hash npm 2>/dev/null; then
 	echo "Building ASF UI..."
 
+	# ASF-ui doesn't clean itself after old build
+	rm -rf "ASF-ui/dist"
+
 	cd ASF-ui
-	npm i --no-progress
+	npm i
 	git checkout -- package.json package-lock.json # Until we can switch to npm ci, avoid any changes to source files done by npm i
-	npm run-script deploy --no-progress
+	npm run-script deploy
 	cd ..
+
+	# ASF's output www folder needs cleaning as well
+	rm -rf "${MAIN_PROJECT}/${OUT}/www"
 else
 	echo "WARNING: ASF UI dependencies are missing, skipping build of ASF UI..."
 fi

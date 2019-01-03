@@ -4,7 +4,7 @@
 //  / ___ \ | |  | (__ | | | || | ___) || |_|  __/| (_| || | | | | ||  _|| (_| || |   | | | | | |
 // /_/   \_\|_|   \___||_| |_||_||____/  \__|\___| \__,_||_| |_| |_||_|   \__,_||_|   |_| |_| |_|
 // 
-// Copyright 2015-2018 Łukasz "JustArchi" Domeradzki
+// Copyright 2015-2019 Łukasz "JustArchi" Domeradzki
 // Contact: JustArchi@JustArchi.net
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -56,6 +56,7 @@ namespace ArchiSteamFarm.NLog {
 		protected override async void Write(LogEventInfo logEvent) {
 			if (logEvent == null) {
 				ASF.ArchiLogger.LogNullError(nameof(logEvent));
+
 				return;
 			}
 
@@ -89,6 +90,7 @@ namespace ArchiSteamFarm.NLog {
 		private async Task SendGroupMessage(string message, Bot bot = null) {
 			if (string.IsNullOrEmpty(message)) {
 				ASF.ArchiLogger.LogNullError(nameof(message));
+
 				return;
 			}
 
@@ -106,6 +108,7 @@ namespace ArchiSteamFarm.NLog {
 		private async Task SendPrivateMessage(string message, Bot bot = null) {
 			if (string.IsNullOrEmpty(message)) {
 				ASF.ArchiLogger.LogNullError(nameof(message));
+
 				return;
 			}
 
